@@ -1,5 +1,5 @@
 
-DIY-Thermocam Firmware Development
+*** DIY-Thermocam Firmware Development ***
 
 GNU General Public License v3.0
 Copyright by Max Ritter
@@ -9,36 +9,34 @@ https://github.com/maxritter/DIY-Thermocam
 
 Download and install the following programs:
 
-1. Arduino 1.6.12:                       https://www.arduino.cc/en/Main/Software
-2. Teensyduino 1.31:                     https://www.pjrc.com/teensy/td_download.html
+1. Arduino 1.6.12+:                      https://www.arduino.cc/en/Main/Software
+2. Teensyduino 1.31+:                    https://www.pjrc.com/teensy/td_download.html
 3. Visual Studio 2015 Community Edition: https://www.visualstudio.com/en-us/products/visual-studio-community-vs.aspx
 4. Visual Micro:                         http://www.visualmicro.com/page/Arduino-Visual-Studio-Downloads.aspx
 
 Now Start Visual Studio.
 
-In the "Configure IDE Locations" window under Tools -> VisualMicro, point to the Arduino IDE folder and the Libraries folder from this project.
+Go to Tools -> VisualMicro -> Configure Ide Locations. 
+Set the ide folder location of your Arduino installation (f.ex. "C:\Program Files (x86)\Arduino") and the optional sketchbook location to this project (f.ex. "C:\Dev\VisualMicro\DIY-Thermocam\").
 
 In the "vMicro" menu, select the following settings:
 
 For DIY-Thermocam V1:
-IDE: Arduino 1.6
-Board: Teensy 3.1/3.2
-Option1: USB Type: Serial
+IDE: Arduino 1.6; 
+Board: Teensy 3.1/3.2; 
+Option1: USB Type: Serial; 
 Option2: CPU Speed 144MHz 
 
 For DIY-Thermocam V2:
-IDE: Arduino 1.6
-Board: Teensy 3.6
-Option1: USB Type: Serial
-Option2: CPU Speed 240MHz 
+IDE: Arduino 1.6; 
+Board: Teensy 3.6; 
+Option1: USB Type: Serial; 
+Option2: CPU Speed 240MHz; 
 
 Finally, select the right Comport from the list. 
 If there is no Comport, upload a blank sketch with the USB Type "Serial" to the Arduino first over the Arduino IDE.
 
-Import the project with Open -> Arduino Project. 
-
-Add all the Libraries from the "libraries" folder to the SDK by choosing one after another under Project -> Add Library -> built-in.
-You can view them by selecting Project -> Show Arduino Core and Library Sources.
+Open the project with Open -> Arduino Project and select the "DIY-Thermocam.ino". 
 
 Compile the project with F7. The last step is to include the Mass Storage into the Hex file.
 
