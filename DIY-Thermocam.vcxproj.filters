@@ -64,6 +64,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="DIY-Thermocam.ino" />
+    <None Include="LICENSE" />
+    <None Include="README.MD" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="General\ColorSchemes.h">

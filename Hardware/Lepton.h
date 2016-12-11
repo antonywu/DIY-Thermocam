@@ -26,15 +26,15 @@ enum LeptonReadError {
 
 /* Start Lepton SPI Transmission */
 void lepton_begin() {
+	//Start alternative clock line, except for old HW
+	if (mlx90614Version == mlx90614Version_new)
+		startAltClockline();
 	//For Teensy  3.1 / 3.2 and Lepton3 use this one
-	if((teensyVersion == teensyVersion_old) && (leptonVersion == leptonVersion_3_shutter))
+	if ((teensyVersion == teensyVersion_old) && (leptonVersion == leptonVersion_3_shutter))
 		SPI.beginTransaction(SPISettings(30000000, MSBFIRST, SPI_MODE0));
 	//Otherwise use 20 Mhz maximum and SPI mode 1
 	else
 		SPI.beginTransaction(SPISettings(20000000, MSBFIRST, SPI_MODE1));
-	//Start alternative clock line, except for old HW
-	if (mlx90614Version == mlx90614Version_new)
-		startAltClockline();
 	//Start transfer  - CS LOW
 	digitalWrite(pin_lepton_cs, LOW);
 }
@@ -92,7 +92,6 @@ bool lepton_ffc() {
 	Wire.write(0x02);
 	Wire.write(0x42);
 	byte error = Wire.endTransmission();
-	delay(2000);
 	return error;
 }
 
@@ -119,7 +118,7 @@ int lepton_readReg(byte reg) {
 void lepton_ffcMode(bool automatic)
 {
 	//Array for the package
-	byte package[64];
+	byte package[32];
 	//Read command
 	Wire.beginTransmission(0x2A);
 	Wire.write(0x00);
@@ -132,13 +131,20 @@ void lepton_ffcMode(bool automatic)
 	while (lepton_readReg(0x2) & 0x01);
 	uint8_t length = lepton_readReg(0x6);
 	Wire.requestFrom((uint8_t)0x2A, length);
-
+	//Read out the package
 	for (byte i = 0; i < length; i++)
 	{
 		package[i] = Wire.read();
+		Serial.write(package[i]);
 	}
-	//Alter the second bit to set FFC to manual
-	package[0] = automatic;
+	Wire.endTransmission();
+
+	//Alter the second bit
+	if (automatic)
+		package[1] = 0x01;
+	else
+		package[1] = 0x02;
+
 	//Transmit the new package
 	Wire.beginTransmission(0x2A);
 	Wire.write(0x00);
@@ -147,12 +153,12 @@ void lepton_ffcMode(bool automatic)
 		Wire.write(package[i]);
 	}
 	Wire.endTransmission();
-	//Package length, use 4 here
+	//Package length, use 32 here
 	Wire.beginTransmission(0x2A);
 	Wire.write(0x00);
 	Wire.write(0x06);
 	Wire.write(0x00);
-	Wire.write(0x04);
+	Wire.write(0x20);
 	Wire.endTransmission();
 	//Module and command ID
 	Wire.beginTransmission(0x2A);
@@ -197,6 +203,8 @@ void lepton_version() {
 	else {
 		leptonVersion = leptonVersion_2_noShutter;
 	}
+	//Write to EEPROM
+	EEPROM.write(eeprom_leptonVersion, leptonVersion);
 }
 
 /* Set the shutter operation to manual or auto */
@@ -246,7 +254,7 @@ void lepton_radiometry(bool enable)
 void lepton_init() {
 	//Check the Lepton HW Revision
 	lepton_version();
-	
+
 	//Perform FFC if shutter is attached
 	if (leptonVersion != leptonVersion_2_noShutter) {
 		//Set shutter mode to auto
@@ -254,6 +262,8 @@ void lepton_init() {
 		//Run the FFC and check return
 		if (lepton_ffc())
 			setDiagnostic(diag_lep_conf);
+		//Wait some time
+		delay(2000);
 	}
 	//No shutter attached
 	else

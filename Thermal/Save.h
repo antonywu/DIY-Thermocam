@@ -154,7 +154,7 @@ void checkImageSave() {
 	}
 
 	//Set text color
-	setTextColor();
+	changeTextColor();
 	//Set background transparent
 	display_setBackColor(VGA_TRANSPARENT);
 	//Display to screen in big font
@@ -265,6 +265,10 @@ void processVideoFrames(int framesCaptured, char* dirname) {
 		else if (filterType == filterType_gaussian)
 			gaussianFilter();
 
+		//Find min / max position
+		if (minMaxPoints != minMaxPoints_disabled)
+			findMinMaxPositions();
+
 		//Convert lepton data to RGB565 colors
 		convertColors(true);
 
@@ -343,11 +347,8 @@ void saveRawData(bool isImage, char* name, uint16_t framesCaptured) {
 		sdFile.write((byte)0);
 	else
 		sdFile.write(colorbarEnabled);
-	//Write the temperature points enabled attribute
-	if (calStatus == cal_warmup)
-		sdFile.write((byte)0);
-	else
-		sdFile.write(pointsEnabled);
+	//Write the show hottest / coldest attribute
+	sdFile.write(minMaxPoints);
 
 	//Write calibration offset
 	floatToBytes(farray, (float)calOffset);
@@ -359,9 +360,13 @@ void saveRawData(bool isImage, char* name, uint16_t framesCaptured) {
 		sdFile.write(farray[i]);
 
 	//Write temperature points
-	for (int i = 0; i < 192; i++) {
-		sdFile.write((showTemp[i] & 0xFF00) >> 8);
-		sdFile.write(showTemp[i] & 0x00FF);
+	for (byte i = 0; i < 96; i++) {
+		//Write index
+		sdFile.write((tempPoints[i][0] & 0xFF00) >> 8);
+		sdFile.write(tempPoints[i][0] & 0x00FF);
+		//Write value
+		sdFile.write((tempPoints[i][1] & 0xFF00) >> 8);
+		sdFile.write(tempPoints[i][1] & 0x00FF);
 	}
 
 	//Close the file

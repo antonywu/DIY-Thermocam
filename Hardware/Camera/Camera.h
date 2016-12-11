@@ -119,7 +119,7 @@ void camera_init(void)
 	camera_changeRes(camera_resHigh);
 }
 
-/* Normal output function for the JPEG Decompressor */
+/* Normal output function for the JPEG Decompressor - Teensy 3.6 */
 unsigned int camera_decompOutNormal(JDEC * jd, void * bitmap, JRECT * rect)
 {
 	unsigned short * bmp = (unsigned short *)bitmap;
@@ -150,7 +150,7 @@ unsigned int camera_decompOutNormal(JDEC * jd, void * bitmap, JRECT * rect)
 					if (bmp[count] == 0)
 						bmp[count] = 1;
 					//Set pixel
-					bigBuffer[76799 - imagepos] = bmp[count];
+					bigBuffer[imagepos] = bmp[count];
 				}
 				//Raise counter
 				count++;
@@ -277,7 +277,7 @@ void camera_get(byte mode)
 		camera_jpegData = (uint8_t*)bigBuffer;
 	//For decompression or saving on new HW, define space
 	else
-		camera_jpegData = (uint8_t*)malloc(jpegLen + sizeof(exifHeader_ov2640));
+		camera_jpegData = (uint8_t*)malloc(jpegLen);
 
 	//Arducam
 	if (teensyVersion == teensyVersion_new) {
@@ -288,7 +288,7 @@ void camera_get(byte mode)
 		else if (mode == camera_save) {
 			ov2640_transfer(camera_jpegData, 0);
 			startAltClockline();
-			sdFile.write(camera_jpegData, jpegLen + sizeof(exifHeader_ov2640));
+			sdFile.write(camera_jpegData, jpegLen);
 			sdFile.close();
 			endAltClockline();
 		}
@@ -296,7 +296,7 @@ void camera_get(byte mode)
 		else if (mode == camera_serial)
 		{
 			ov2640_transfer(camera_jpegData, 0);
-			Serial.write(camera_jpegData, jpegLen + sizeof(exifHeader_ov2640));
+			Serial.write(camera_jpegData, jpegLen);
 		}
 	}
 	//PTC-06 or PTC-08

@@ -41,8 +41,9 @@ void welcomeScreen() {
 	display_printC("It will guide you through the", CENTER, 140);
 	display_printC("basic settings for your device.", CENTER, 170);
 	display_printC("-> Please touch screen <-", CENTER, 210, VGA_BLUE);
-	//Wait for touch press
-	while (!touch_touched());
+	//Wait for touch press or updater request
+	while (!touch_touched())
+		checkForUpdater();
 	//Touch release again
 	while (touch_touched());
 }
@@ -62,8 +63,9 @@ void infoScreen(String* text, bool cont = true) {
 		display_printC(text[5], CENTER, 155);
 		display_printC(text[6], CENTER, 180);
 		display_printC("-> Please touch screen <-", CENTER, 212, VGA_BLUE);
-		//Wait for touch press
-		while (!touch_touched());
+		//Wait for touch press or updater request
+		while (!touch_touched())
+			checkForUpdater();
 		//Touch release again
 		while (touch_touched());
 	}
@@ -167,7 +169,7 @@ void calibrationHelperScreen() {
 	text[6] = "process has been completed.";
 	infoScreen(text);
 	//Calibration procedure
-	calibrationProcess(true);
+	calibrationProcess(false, true);
 }
 
 /* Format the SD card for the first time */
@@ -256,7 +258,6 @@ void stdEEPROMSet() {
 	EEPROM.write(eeprom_batteryEnabled, true);
 	EEPROM.write(eeprom_timeEnabled, true);
 	EEPROM.write(eeprom_dateEnabled, true);
-	EEPROM.write(eeprom_pointsEnabled, true);
 	EEPROM.write(eeprom_storageEnabled, true);
 	EEPROM.write(eeprom_displayMode, displayMode_thermal);
 	EEPROM.write(eeprom_textColor, textColor_white);

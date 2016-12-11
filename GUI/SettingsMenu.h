@@ -18,7 +18,7 @@
 /* Draw the GUI elements for the adjust combined menu */
 void adjustCombinedGUI() {
 	//Color and font
-	setTextColor();
+	changeTextColor();
 	display_setFont(bigFont);
 	display_setBackColor(VGA_TRANSPARENT);
 
@@ -98,7 +98,7 @@ void adjustCombinedRefresh() {
 /* Shows on the screen that is refreshes */
 void adjustCombinedLoading() {
 	//Set Text Color
-	setTextColor();
+	changeTextColor();
 	//set Background transparent
 	display_setBackColor(VGA_TRANSPARENT);
 	//Give the user a hint that it tries to save
@@ -320,7 +320,7 @@ void adjustCombinedNewMenuHandler(bool firstStart = false) {
 					adjCombAlpha = 0.3;
 				sprintf(buffer, "Alpha set to %.1f", adjCombAlpha);
 				display_setFont(bigFont);
-				setTextColor();
+				changeTextColor();
 				display_print(buffer, CENTER, 110);
 				display_setFont(smallFont);
 				adjustCombinedRefresh();
@@ -1128,7 +1128,7 @@ void rotateDisplayMenu(bool firstStart = false) {
 				if (firstStart)
 					return;
 				//Set the rotation
-				setRotation();
+				setDisplayRotation();
 				//Show the display menu
 				displayMenu();
 				break;

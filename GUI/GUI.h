@@ -29,7 +29,7 @@ void floatToChar(char* buffer, float val) {
 }
 
 /* Sets the text color to the right one */
-void setTextColor() {
+void changeTextColor() {
 	//Red
 	if (textColor == textColor_red)
 		display_setColor(VGA_RED);
@@ -64,7 +64,7 @@ void showFullMessage(char* message, bool small) {
 /* Shows a transparent message in live mode */
 void showTransMessage(char* msg) {
 	//Set text color
-	setTextColor();
+	changeTextColor();
 	//Set background transparent
 	display_setBackColor(VGA_TRANSPARENT);
 	//Display to screen in big font
@@ -184,7 +184,7 @@ void showDiagnostic() {
 /* Draw the Boot screen */
 void bootScreen() {
 	//Set rotation
-	setRotation();
+	setDisplayRotation();
 	//Init the buttons
 	buttons_init();
 	//Set Fonts

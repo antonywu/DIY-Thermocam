@@ -96,6 +96,7 @@
 #define hotColdColor_blue  4
 
 //EEPROM registers
+#define eeprom_leptonVersion    100
 #define eeprom_tempFormat       101
 #define eeprom_colorScheme      102
 #define eeprom_convertEnabled   103
@@ -105,16 +106,16 @@
 #define eeprom_batteryEnabled   107
 #define eeprom_timeEnabled      108
 #define eeprom_dateEnabled      109
-#define eeprom_pointsEnabled    110
+#define eeprom_teensyVersion    110
 #define eeprom_storageEnabled   111
 #define eeprom_rotationEnabled  112
 #define eeprom_displayMode      113
 #define eeprom_textColor        114
 #define eeprom_filterType       115
-#define eeprom_minValue1Low      116
-#define eeprom_minValue1High     117
-#define eeprom_maxValue1Low      118
-#define eeprom_maxValue1High     119
+#define eeprom_minValue1Low     116
+#define eeprom_minValue1High    117
+#define eeprom_maxValue1Low     118
+#define eeprom_maxValue1High    119
 #define eeprom_minMax1Set       120
 #define eeprom_adjComb1Left     121
 #define eeprom_adjComb1Right    122
@@ -146,15 +147,15 @@
 #define eeprom_liveHelper       151
 #define eeprom_adjComb3Set      152
 #define eeprom_adjCombPreset    153
-#define eeprom_minValue2Low      154
-#define eeprom_minValue2High     155
-#define eeprom_maxValue2Low      156
-#define eeprom_maxValue2High     157
+#define eeprom_minValue2Low     154
+#define eeprom_minValue2High    155
+#define eeprom_maxValue2Low     156
+#define eeprom_maxValue2High    157
 #define eeprom_minMax2Set       158
-#define eeprom_minValue3Low      159
-#define eeprom_minValue3High     160
-#define eeprom_maxValue3Low      161
-#define eeprom_maxValue3High     162
+#define eeprom_minValue3Low     159
+#define eeprom_minValue3High    160
+#define eeprom_maxValue3Low     161
+#define eeprom_maxValue3High    162
 #define eeprom_minMax3Set       163
 #define eeprom_minMaxPreset     164
 #define eeprom_adjComb1Factor   165

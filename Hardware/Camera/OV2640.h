@@ -389,11 +389,13 @@ void ov2640_transfer(uint8_t * jpegData, boolean stream)
 	{
 		temp_last = temp;
 		temp = SPI.transfer(0x00);
+		//Normal bytestream
 		if (is_header == 1)
 		{
 			jpegData[counter] = temp;
 			counter++;
 		}
+		//Start byte sqeuence
 		else if ((temp == 0xD8) & (temp_last == 0xFF))
 		{
 			is_header = 1;
@@ -401,16 +403,7 @@ void ov2640_transfer(uint8_t * jpegData, boolean stream)
 			jpegData[1] = temp;
 			counter = 2;
 		}
-
-		if((counter == 20) && !stream)
-		{
-			for(uint8_t i=0;i < sizeof(exifHeader_ov2640); i++)
-			{
-				jpegData[counter + i] = exifHeader_ov2640[i];
-			}
-			counter += sizeof(exifHeader_ov2640);
-		}
-
+		//End byte sequence
 		if ((temp == 0xD9) && (temp_last == 0xFF))
 			break;
 	}

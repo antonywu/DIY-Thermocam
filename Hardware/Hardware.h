@@ -234,12 +234,6 @@ void readEEPROM() {
 		dateEnabled = read;
 	else
 		dateEnabled = false;
-	//Points Enabled
-	read = EEPROM.read(eeprom_pointsEnabled);
-	if ((read == false) || (read == true))
-		pointsEnabled = read;
-	else
-		pointsEnabled = false;
 	//Storage Enabled
 	read = EEPROM.read(eeprom_storageEnabled);
 	if ((read == false) || (read == true))
@@ -315,51 +309,6 @@ void setDiagnostic(byte device) {
 	diagnostic &= ~(1 << device);
 }
 
-/* Prints the diagnostic infos on the serial console */
-void printDiagnostic() {
-	Serial.println("*** Diagnostic Infos ***");
-	//Check spot sensor
-	if (checkDiagnostic(diag_spot))
-		Serial.println("Spot sensor - OK");
-	else
-		Serial.println("Spot sensor - Failed");
-	//Check display
-	if (checkDiagnostic(diag_display))
-		Serial.println("Display - OK");
-	else
-		Serial.println("Display - Failed");
-	//Check visual camera
-	if (checkDiagnostic(diag_camera))
-		Serial.println("Visual camera - OK");
-	else
-		Serial.println("Visual camera - Failed");
-	//Check touch screen
-	if (checkDiagnostic(diag_touch))
-		Serial.println("Touch screen - OK");
-	else
-		Serial.println("Touch screen - Failed");
-	//Check sd card
-	if (checkDiagnostic(diag_sd))
-		Serial.println("SD card - OK");
-	else
-		Serial.println("SD card - Failed");
-	//Check battery gauge
-	if (checkDiagnostic(diag_bat))
-		Serial.println("Battery gauge - OK");
-	else
-		Serial.println("Battery gauge - Failed");
-	//Check lepton config
-	if (checkDiagnostic(diag_lep_conf))
-		Serial.println("Lepton config - OK");
-	else
-		Serial.println("Lepton config - Failed");
-	//Check lepton data
-	if (checkDiagnostic(diag_lep_data))
-		Serial.println("Lepton data - OK");
-	else
-		Serial.println("Lepton data - Failed");
-}
-
 /* Checks for hardware issues */
 void checkDiagnostic() {
 	//When returning from mass storage, do not check
@@ -368,19 +317,13 @@ void checkDiagnostic() {
 		EEPROM.write(eeprom_massStorage, 0);
 		diagnostic = diag_ok;
 	}
+
 	//If the diagnostic is not okay
 	if (diagnostic != diag_ok) {
-		//If the display is working
-		if (checkDiagnostic(diag_display))
-		{
-			//Show it on the screen
-			showDiagnostic();
-			//Try to continue after two seconds
-			delay(2000);
-		}
-		//If not, show it over serial
-		else
-			printDiagnostic();
+		//Show it on the screen
+		showDiagnostic();
+		//Try to continue after two seconds
+		delay(2000);
 	}
 }
 
@@ -510,10 +453,13 @@ void detectTeensyVersion()
 #elif defined(__MK20DX256__)
 	teensyVersion = teensyVersion_old;
 #endif
+
+	//Set hardware version to detect V1/V2 over EEPROM
+	EEPROM.write(eeprom_teensyVersion, teensyVersion);
 }
 
 /* Sets the display rotation depending on the setting */
-void setRotation() {
+void setDisplayRotation() {
 	if (rotationEnabled) {
 		display_setRotation(135);
 		touch_setRotation(true);
@@ -684,10 +630,10 @@ void initHardware()
 	detectTeensyVersion();
 	//Init GPIO
 	initGPIO();
-	//Init I2C
-	initI2C();
 	//Init SPI
 	initSPI();
+	//Init I2C
+	initI2C();
 	//Init ADC
 	initADC();
 	//Init display
@@ -710,8 +656,8 @@ void initHardware()
 	initScreenOffTimer();
 	//Init the realtime clock
 	initRTC();
-	//Init the buffer(s)
-	initBuffer();
 	//Check battery for the first time
 	checkBattery(true);
+	//Init the buffer(s)
+	initBuffer();
 }

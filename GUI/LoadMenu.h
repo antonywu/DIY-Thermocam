@@ -18,7 +18,7 @@
 /* Display the GUI elements for the load menu */
 void displayGUI(int imgCount, char* infoText) {
 	//Set text color
-	setTextColor();
+	changeTextColor();
 	//set Background transparent
 	display_setBackColor(VGA_TRANSPARENT);
 	display_setFont(bigFont);

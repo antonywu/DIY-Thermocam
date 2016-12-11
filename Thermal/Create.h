@@ -405,44 +405,55 @@ void getTemperatures() {
 
 /* Clears the show temperatures array */
 void clearTemperatures() {
-	//Set all showTemps to zero
-	for (int x = 0; x < 16; x++) {
-		for (int y = 0; y < 12; y++) {
-			showTemp[(y * 16) + x] = 0;
-		}
+	//Go through the array
+	for (byte i = 0; i < 96; i++) {
+		//Set the index to 65535
+		tempPoints[i][0] = 65535;
+		//Set the value to zero
+		tempPoints[i][1] = 0;
 	}
 }
 
 /* Shows the temperatures over the smallBuffer on the screen */
 void showTemperatures() {
-	int xpos, ypos;
-	for (int x = 0; x < 16; x++) {
-		for (int y = 0; y < 12; y++) {
-			if (showTemp[(y * 16) + x] != 0) {
-				xpos = x * 20;
-				ypos = y * 20;
+	uint16_t xpos, ypos;
 
-				if (ypos <= 12)
-					ypos = 13;
+	//Go through the array
+	for (byte i = 0; i < 96; i++) {
+		//Get index
+		uint16_t index = tempPoints[i][0];
 
-				display_print((char*) ".", xpos, ypos - 10);
-				xpos -= 22;
+		//Check if the tempPoint is active
+		if (index != 65535) {
+			//Calculate x and y position
+			xpos = (index % 160) * 2;
+			ypos = (index / 160) * 2;
 
-				if (xpos < 0)
-					xpos = 0;
-				ypos += 6;
+			//Display the point
+			display_print((char*) ".", xpos, ypos);
+			display_print((char*) ".", xpos + 1, ypos);
+			display_print((char*) ".", xpos, ypos + 1);
+			display_print((char*) ".", xpos + 1, ypos + 1);
 
-				if (ypos > 239)
-					ypos = 239;
+			//Calc x position for the text
+			if (xpos < 20)
+				xpos = 0;
+			else
+				xpos -= 20;
 
-				display_printNumF(calFunction(showTemp[(y * 16) + x]), 2, xpos, ypos);
-			}
+			//Calc y position for the text
+			ypos += 15;
+			if (ypos > 239)
+				ypos = 239;
+
+			//Display the absolute temperature
+			display_printNumF(calFunction(tempPoints[i][1]), 2, xpos, ypos);
 		}
 	}
 }
 
 /* Read the x and y coordinates when touch screen is pressed for Add Point */
-void getTouchPos(int* x, int* y) {
+void getTouchPos(uint16_t* x, uint16_t* y) {
 	int iter = 0;
 	TS_Point point;
 	unsigned long tx = 0;
@@ -465,21 +476,42 @@ void getTouchPos(int* x, int* y) {
 
 /* Function to add or remove a measurement point */
 void tempPointFunction(bool remove) {
-	int x, y;
+	uint16_t xpos, ypos;
+	byte pos = 0;
 	bool removed = false;
 
 	//If remove points, check if there are some first
 	if (remove) {
-		for (int i = 0; i < 16; i++) {
-			for (int j = 0; j < 12; j++) {
-				if (((j * 16 + i) >= 0) && ((j * 16 + i) < 192)) {
-					if (showTemp[(j * 16) + i] != 0)
-						removed = true;
-				}
+		//Go through the array
+		for (byte i = 0; i < 96; i++) {
+			if (tempPoints[i][0] != 65535)
+			{
+				removed = true;
+				break;
 			}
 		}
+		//No points available to remove
 		if (!removed) {
 			showFullMessage((char*) "No points available!", true);
+			delay(1000);
+			return;
+		}
+	}
+	//If add points, check if we have space left
+	else
+	{
+		//Go through the array
+		byte i;
+		for (i = 0; i < 96; i++) {
+			if (tempPoints[i][0] == 65535)
+			{
+				pos = i;
+				break;
+			}
+		}
+		//Maximum number of points added
+		if (i == 96) {
+			showFullMessage((char*) "Remove a point first!", true);
 			delay(1000);
 			return;
 		}
@@ -506,7 +538,7 @@ redraw:
 	displayBuffer();
 
 	//Set text color, font and background
-	setTextColor();
+	changeTextColor();
 	display_setBackColor(VGA_TRANSPARENT);
 	display_setFont(smallFont);
 	//Show current temperature points
@@ -516,30 +548,37 @@ redraw:
 	display_print((char*) "Select position", CENTER, 210);
 
 	//Get touched coordinates
-	getTouchPos(&x, &y);
-	//Divide through 20 to match array size
-	x /= 20;
-	y /= 20;
-	if (x < 0)
-		x = 0;
-	if (x > 15)
-		x = 15;
-	if (y < 0)
-		y = 0;
-	if (y > 11)
-		y = 11;
+	getTouchPos(&xpos, &ypos);
+
+	//Divide through 2 to match array size
+	xpos /= 2;
+	ypos /= 2;
 
 	//Remove point
 	if (remove) {
+		//Set marker to false
 		removed = false;
-	outerloop:
-		for (int i = x - 1; i <= x + 1; i++) {
-			for (int j = y - 1; j <= y + 1; j++) {
-				if (((j * 16 + i) >= 0) && ((j * 16 + i) < 192)) {
-					if (showTemp[(j * 16) + i] != 0) {
-						showTemp[(j * 16) + i] = 0;
-						removed = true;
-						goto outerloop;
+
+		//Check for 10 pixels around the touch position
+		for (uint16_t x = xpos - 10; x <= xpos + 10; x++) {
+			for (uint16_t y = ypos - 10; y <= ypos + 10; y++) {
+				//Calculate index number
+				uint16_t index = x + (y * 160);
+				//If index is valid
+				if ((index >= 0) && (index < 19200)) {
+					//Check for all 96 points
+					for (byte i = 0; i < 96; i++)
+					{
+						//We found a valid temperature point
+						if (tempPoints[i][0] == index)
+						{
+							//Set to invalid
+							tempPoints[i][0] = 65535;
+							//Reset value
+							tempPoints[i][1] = 0;
+							//Set markter to true
+							removed = true;
+						}
 					}
 				}
 			}
@@ -559,13 +598,16 @@ redraw:
 
 	//Add point
 	else {
-		//Add to array
-		showTemp[(y * 16) + x] = 1;
+		//Add index
+		tempPoints[pos][0] = xpos + (ypos * 160);
+		//Set raw value to zero
+		tempPoints[pos][1] = 0;
 		//Show border
 		drawMainMenuBorder();
 		//Show message
 		showFullMessage((char*) "Point added!", true);
 	}
+
 	//Wait some time
 	delay(1000);
 }
@@ -703,11 +745,17 @@ void findMinMaxPositions()
 
 /* Refresh the temperature points*/
 void refreshTempPoints() {
-	for (int y = 0; y < 12; y++) {
-		for (int x = 0; x < 16; x++) {
-			if (showTemp[(x + (16 * y))] != 0) {
-				showTemp[(x + (16 * y))] = smallBuffer[(x * 10) + (y * 10 * 160) + 805];
-			}
+	//Go through the array
+	for (byte i = 0; i < 20; i++) {
+		//Get index
+		uint16_t index = tempPoints[i][0];
+		//Check if point is active
+		if (index != 65535) {
+			//Calculate x and y position
+			uint16_t xpos = index % 160;
+			uint16_t ypos = index / 160;
+			//Update value
+			tempPoints[i][1] = smallBuffer[xpos + (ypos * 160)];
 		}
 	}
 }
@@ -723,10 +771,6 @@ void calculateMinMaxPoint(uint16_t* xpos, uint16_t* ypos, uint16_t pixelIndex) {
 		*ypos = 240;
 	if (*xpos > 320)
 		*xpos = 320;
-	if (*xpos < 0)
-		*xpos = 0;
-	if (*ypos < 0)
-		*ypos = 0;
 }
 
 /* Creates a thermal smallBuffer and stores it in the array */
@@ -738,8 +782,7 @@ void createThermalImg(bool small) {
 	compensateCalib();
 
 	//Refresh the temp points if required
-	if (pointsEnabled)
-		refreshTempPoints();
+	refreshTempPoints();
 
 	//Find min / max position
 	if (minMaxPoints != minMaxPoints_disabled)
@@ -775,8 +818,7 @@ void createVisCombImg() {
 	compensateCalib();
 
 	//Refresh the temp points if required
-	if (pointsEnabled)
-		refreshTempPoints();
+	refreshTempPoints();
 
 	//Find min / max position
 	if (minMaxPoints != minMaxPoints_disabled)

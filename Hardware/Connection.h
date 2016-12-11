@@ -31,28 +31,33 @@
 #define CMD_SET_LASER          118
 #define CMD_GET_LASER          119
 #define CMD_SET_SHUTTERRUN     120
-#define CMD_SET_SHUTTERAUTO    121
-#define CMD_SET_SHUTTERMANUAL  122
-#define CMD_GET_SHUTTERSTATE   123
+#define CMD_SET_SHUTTERMODE    121
+#define CMD_SET_FILTERTYPE     122
+#define CMD_GET_SHUTTERMODE    123
 #define CMD_GET_BATTERYSTATUS  124
 #define CMD_SET_CALSLOPE       125
 #define CMD_SET_CALOFFSET      126
-#define CMD_GET_MINMAXPOS      127 
+#define CMD_GET_DIAGNOSTIC     127
 #define CMD_GET_VISUALIMGHIGH  128
 #define CMD_GET_FWVERSION      129
-#define CMD_SET_LIMITSAUTO     130
-#define CMD_SET_LIMITSMANUAL   131
+#define CMD_SET_LIMITS         130
+#define CMD_SET_TEXTCOLOR      131
 #define CMD_SET_COLORSCHEME    132
 #define CMD_SET_TEMPFORMAT     133
 #define CMD_SET_SHOWSPOT       134
 #define CMD_SET_SHOWCOLORBAR   135
-#define CMD_SET_SHOWTEMPPOINTS 136
+#define CMD_SET_SHOWMINMAX     136
 #define CMD_SET_TEMPPOINTS     137
+#define CMD_GET_HWVERSION      138
+#define CMD_SET_ROTATION       139
+#define CMD_SET_CALIBRATION    140
 
 //Serial frame commands
 #define CMD_FRAME_RAW          150
 #define CMD_FRAME_COLOR        151
-//Types of frame responses
+#define CMD_FRAME_DISPLAY      152
+
+//Types of raw frame responses
 #define FRAME_CAPTURE          180
 #define FRAME_STARTVID         181
 #define FRAME_STOPVID          182
@@ -74,20 +79,11 @@ int getInt(String text)
 	return x;
 }
 
-/* Clear all buffers */
-void serialClear() {
-	Serial.clearReadError();
-	Serial.clearWriteError();
-	while (Serial.available() > 0) {
-		Serial.read();
-	}
-}
-
 /* Enter the serial connection mode if no display attached */
 bool checkNoDisplay()
 {
-	//No connection to ILI9341, touch and SD -> go to USB serial
-	if (!checkDiagnostic(diag_display) && !checkDiagnostic(diag_touch) && !checkDiagnostic(diag_sd))
+	//No connection to ILI9341 and touch screen -> go to USB serial
+	if (!checkDiagnostic(diag_display) && !checkDiagnostic(diag_touch))
 		return true;
 	//Display connected
 	return false;
@@ -126,6 +122,30 @@ void sendRawData(bool color = false) {
 	}
 }
 
+/* Sends the framebuffer */
+void sendFramebuffer()
+{
+	//Teensy 3.1 / 3.2
+	if (teensyVersion == teensyVersion_old)
+	{
+		for (int i = 0; i < 19200; i++)
+		{
+			Serial.write((smallBuffer[i] & 0xFF00) >> 8);
+			Serial.write(smallBuffer[i] & 0x00FF);
+		}
+	}
+
+	//Teensy 3.6
+	else
+	{
+		for (int i = 0; i < 76800; i++)
+		{
+			Serial.write((bigBuffer[i] & 0xFF00) >> 8);
+			Serial.write(bigBuffer[i] & 0x00FF);
+		}
+	}
+}
+
 /* Sends the configuration data */
 void sendConfigData() {
 	//Lepton version
@@ -139,23 +159,38 @@ void sendConfigData() {
 	//Send the show spot attribute
 	Serial.write(spotEnabled);
 	//Send the show colorbar attribute
-	if (calStatus == cal_warmup)
-		Serial.write((byte)0);
-	else
-		Serial.write(colorbarEnabled);
-	//Send the temperature points enabled attribute
-	if (calStatus == cal_warmup)
-		Serial.write((byte)0);
-	else
-		Serial.write(pointsEnabled);
+	Serial.write(colorbarEnabled);
+	//Send the show hottest / coldest attribute
+	Serial.write(minMaxPoints);
+	//Send the text color
+	Serial.write(textColor);
+	//Send the filter type
+	Serial.write(filterType);
 	//Send adjust limits allowed
 	Serial.write((autoMode) && (!limitsLocked));
 }
 
-/* Sends the visual image as JPEG */
-void sendVisualImg() {
-	camera_capture();
-	camera_get(camera_serial);
+/* Sends the visual image in low or high quality */
+void sendVisualImg(bool high)
+{
+	//Only when camera is working
+	if (checkDiagnostic(diag_camera)) {
+		//Change resolution to 640x480
+		if (high)
+			camera_changeRes(camera_resHigh);
+		//Change resolution to 320x240
+		else
+			camera_changeRes(camera_resMiddle);
+
+		//Capture a frame
+		camera_capture();
+
+		//Send the data over the serial port
+		camera_get(camera_serial);
+	}
+	//Send false
+	else
+		Serial.write(0);
 }
 
 /* Sends the calibration data */
@@ -189,18 +224,21 @@ void changeColorScheme() {
 
 /* Sets the time */
 void setTime() {
-	//If no display connected, do not set time
-	if (checkNoDisplay())
-		return;
-
 	//Wait for time string, maximum 1 second
 	uint32_t timer = millis();
 	while (!Serial.available() && ((millis() - timer) < 1000));
+
 	//If there was no timestring
 	if (Serial.available() == 0)
+	{
+		//Send ACK and return
+		Serial.write(CMD_SET_TIME);
 		return;
+	}
+
 	//Read time
 	String dateIn = Serial.readString();
+
 	//Check if valid
 	if (getInt(dateIn.substring(0, 4) >= 2016)) {
 		//Set the clock
@@ -209,6 +247,9 @@ void setTime() {
 		//Set the RTC
 		Teensy3Clock.set(now());
 	}
+
+	//Send ACK
+	Serial.write(CMD_SET_TIME);
 }
 
 /* Sets the calibration offset */
@@ -235,9 +276,13 @@ void setCalSlope() {
 
 /* Send the temperature points */
 void sendTempPoints() {
-	for (int i = 0; i < 192; i++) {
-		Serial.write((showTemp[i] & 0xFF00) >> 8);
-		Serial.write(showTemp[i] & 0x00FF);
+	for (byte i = 0; i < 96; i++) {
+		//Send index value
+		Serial.write((tempPoints[i][0] & 0xFF00) >> 8);
+		Serial.write(tempPoints[i][0] & 0x00FF);
+		//Send raw value
+		Serial.write((tempPoints[i][1] & 0xFF00) >> 8);
+		Serial.write(tempPoints[i][1] & 0x00FF);
 	}
 }
 
@@ -256,62 +301,52 @@ void sendBatteryStatus() {
 	Serial.write(batPercentage);
 }
 
-/* Sends the position of the min/max value */
-void sendMinMaxPos() {
-	uint16_t minXPos, minYPos, maxXPos, maxYPos;
-	//Get raw temperatures
-	getTemperatures();
-	//Find min and max value
-	findMinMaxPositions();
-	//Calculate their position
-	calculateMinMaxPoint(&minXPos, &minYPos, minTempPos);
-	calculateMinMaxPoint(&maxXPos, &maxYPos, maxTempPos);
-	//Minimum temp x position
-	Serial.write((minXPos & 0xFF00) >> 8);
-	Serial.write(minXPos & 0x00FF);
-	//Minimum temp y position
-	Serial.write((minYPos & 0xFF00) >> 8);
-	Serial.write(minYPos & 0x00FF);
-	//Maximum temp x position
-	Serial.write((maxXPos & 0xFF00) >> 8);
-	Serial.write(maxXPos & 0x00FF);
-	//Maximum temp y position
-	Serial.write((maxYPos & 0xFF00) >> 8);
-	Serial.write(maxYPos & 0x00FF);
-}
-
 /* Send the current firmware version */
 void sendFWVersion() {
 	Serial.write(fwVersion);
 }
 
-/* Set the temperature limits to auto */
-void setLimitsAuto()
+/* Set the temperature limits */
+void setLimits()
 {
-	//Enable auto mode
-	autoMode = true;
-	//Disable limits locked
-	limitsLocked = false;
+	//Read byte from serial port
+	byte read = Serial.read();
+
+	//Lock limits
+	if (read == 0)
+		limitsLocked = true;
+
+	//Auto mode
+	else if (read == 1) {
+		//Enable auto mode
+		autoMode = true;
+		//Disable limits locked
+		limitsLocked = false;
+	}
+
 	//Send ACK
-	Serial.write(CMD_SET_LIMITSAUTO);
+	Serial.write(CMD_SET_LIMITS);
 }
 
-/* Set the temperature limits to manual */
-void setLimitsManual()
+/* Set the text color */
+void setTextColor()
 {
-	byte MSB, LSB;
-	//Enable limits locked
-	limitsLocked = true;
-	//Receive minValue
-	MSB = Serial.read();
-	LSB = Serial.read();
-	minValue = (((MSB) << 8) + LSB);
-	//Receive maxValue
-	MSB = Serial.read();
-	LSB = Serial.read();
-	maxValue = (((MSB) << 8) + LSB);
+	//Read byte from serial port
+	byte read = Serial.read();
+
+	//Check if read result is valid
+	if ((read >= textColor_white) && (read <= textColor_blue))
+	{
+		//Set text color to input
+		textColor = read;
+		//Change it
+		changeTextColor();
+		//Save to EEPROM
+		EEPROM.write(eeprom_textColor, textColor);
+	}
+
 	//Send ACK
-	Serial.write(CMD_SET_LIMITSMANUAL);
+	Serial.write(CMD_SET_TEXTCOLOR);
 }
 
 /* Set the color scheme */
@@ -385,46 +420,113 @@ void setShowColorbar()
 	Serial.write(CMD_SET_SHOWCOLORBAR);
 }
 
-/* Set the show temperature points information */
-void setShowTempPoints()
+/* Set the show colorbar information */
+void setMinMax()
+{
+	//Read byte from serial port
+	byte read = Serial.read();
+	//Check if it has a valid number
+	if ((read >= minMaxPoints_disabled) && (read <= minMaxPoints_both))
+	{
+		//Set show colorbar to input
+		minMaxPoints = read;
+		//Save to EEPROM
+		EEPROM.write(eeprom_minMaxPoints, minMaxPoints);
+	}
+	//Send ACK
+	Serial.write(CMD_SET_SHOWMINMAX);
+}
+
+/* Set the shutter mode */
+void setShutterMode()
+{
+	//Read byte from serial port
+	byte read = Serial.read();
+	//Check if it has a valid number
+	if ((read >= 0) && (read <= 1))
+		//Set lepton shutter mode
+		lepton_shutterMode(read);
+
+	//Send ACK
+	Serial.write(CMD_SET_SHUTTERMODE);
+}
+
+/* Set the fitler type */
+void setFilterType()
+{
+	//Read byte from serial port
+	byte read = Serial.read();
+
+	//Check if it has a valid number
+	if ((read >= filterType_none) && (read <= filterType_box))
+	{
+		//Set filter type to input
+		filterType = read;
+		//Save to EEPROM
+		EEPROM.write(eeprom_filterType, filterType);
+	}
+
+	//Send ACK
+	Serial.write(CMD_SET_FILTERTYPE);
+}
+
+/* Set the rotation */
+void setRotation()
 {
 	//Read byte from serial port
 	byte read = Serial.read();
 	//Check if it has a valid number
 	if ((read >= 0) && (read <= 1))
 	{
-		//Set show temppoints to input
-		pointsEnabled = read;
+		//Set rotation to input
+		rotationEnabled = read;
+		//Apply to display
+		setDisplayRotation();
 		//Save to EEPROM
-		EEPROM.write(eeprom_pointsEnabled, pointsEnabled);
+		EEPROM.write(eeprom_rotationEnabled, rotationEnabled);
 	}
 	//Send ACK
-	Serial.write(CMD_SET_SHOWTEMPPOINTS);
+	Serial.write(CMD_SET_ROTATION);
+}
+
+/* Send the hardware version */
+void sendHardwareVersion()
+{
+	//Send hardware version
+	Serial.write(teensyVersion);
+}
+
+/* Send the diagnostic information */
+void sendDiagnostic()
+{
+	//Send the diag byte
+	Serial.write(diagnostic);
 }
 
 /* Set temperature points array */
 void setTempPoints()
 {
-	byte MSB, LSB;
 	//Go through the temp points array
-	for (int i = 0; i < 192; i++) {
-		//Read Min
-		MSB = Serial.read();
-		LSB = Serial.read();
-		showTemp[i] = (((MSB) << 8) + LSB);
+	for (byte i = 0; i < 96; i++) {
+		//Read index
+		tempPoints[i][0] = (Serial.read() << 8) + Serial.read();
+		//Read value
+		tempPoints[i][1] = (Serial.read() << 8) + Serial.read();
 	}
 	//Send ACK
 	Serial.write(CMD_SET_TEMPPOINTS);
 }
 
-/* Sends a raw frame */
+/* Sends a raw or color frame */
 void sendFrame(bool color) {
+	//Send type of frame response
 	Serial.write(sendCmd);
 	Serial.flush();
+
 	//Send frame
 	if (sendCmd == FRAME_NORMAL) {
 		//Clear all serial buffers
-		serialClear();
+		Serial.clear();
 		//Convert to colors
 		if (color) {
 			//Apply low-pass filter
@@ -437,15 +539,53 @@ void sendFrame(bool color) {
 		}
 		//Send raw data
 		sendRawData(color);
+
 		//Send limits
 		sendRawLimits();
 		//Send spot temp
 		sendSpotTemp();
 		//Send calibration data
 		sendCalibrationData();
-		//Send temperature points
-		sendTempPoints();
 	}
+	//Switch back to send frame the next time
+	else
+		sendCmd = FRAME_NORMAL;
+}
+
+/* Sends the display content as frame */
+void sendDisplayFrame() {
+	//Send type of frame response
+	Serial.write(sendCmd);
+	Serial.flush();
+
+	//Send frame
+	if (sendCmd == FRAME_NORMAL) {
+		//Find min / max position
+		if (minMaxPoints != minMaxPoints_disabled)
+			findMinMaxPositions();
+
+		//Apply low-pass filter
+		if (filterType == filterType_box)
+			boxFilter();
+		else if (filterType == filterType_gaussian)
+			gaussianFilter();
+
+		//Teensy 3.6 - Resize to big buffer
+		if (teensyVersion == teensyVersion_new)
+			smallToBigBuffer();
+
+		//Convert lepton data to RGB565 colors
+		convertColors();
+
+		//Display additional information
+		imgSave = imgSave_create;
+		displayInfos();
+		imgSave = imgSave_disabled;
+
+		//Send the framebuffer
+		sendFramebuffer();
+	}
+
 	//Switch back to send frame the next time
 	else
 		sendCmd = FRAME_NORMAL;
@@ -472,14 +612,7 @@ bool serialHandler() {
 		break;
 		//Send low visual imahe
 	case CMD_GET_VISUALIMGLOW:
-		//Only when camera is working
-		if (checkDiagnostic(diag_camera)) {
-			camera_changeRes(camera_resMiddle);
-			sendVisualImg();
-		}
-		//Send false
-		else
-			Serial.write(0);
+		sendVisualImg(false);
 		break;
 		//Send calibration data
 	case CMD_GET_CALIBDATA:
@@ -492,8 +625,6 @@ bool serialHandler() {
 		//Change time
 	case CMD_SET_TIME:
 		setTime();
-		//Send ACK
-		Serial.write(CMD_SET_TIME);
 		break;
 		//Send temperature points
 	case CMD_GET_TEMPPOINTS:
@@ -515,20 +646,16 @@ bool serialHandler() {
 		//Send ACK
 		Serial.write(CMD_SET_SHUTTERRUN);
 		break;
-		//Set shutter mode to manual
-	case CMD_SET_SHUTTERMANUAL:
-		lepton_ffcMode(false);
-		//Send ACK
-		Serial.write(CMD_SET_SHUTTERMANUAL);
+		//Set shutter mode
+	case CMD_SET_SHUTTERMODE:
+		setShutterMode();
 		break;
-		//Set shutter mode to auto
-	case CMD_SET_SHUTTERAUTO:
-		lepton_ffcMode(true);
-		//Send ACK
-		Serial.write(CMD_SET_SHUTTERAUTO);
+		//Set the filter type
+	case CMD_SET_FILTERTYPE:
+		setFilterType();
 		break;
-		//Send the shutter mode
-	case CMD_GET_SHUTTERSTATE:
+		//Get the shutter mode
+	case CMD_GET_SHUTTERMODE:
 		sendShutterMode();
 		break;
 		//Send battery status
@@ -547,32 +674,21 @@ bool serialHandler() {
 		//Send ACK
 		Serial.write(CMD_SET_CALSLOPE);
 		break;
-		//Send min/max position
-	case CMD_GET_MINMAXPOS:
-		sendMinMaxPos();
-		break;
 		//Send high visual image
 	case CMD_GET_VISUALIMGHIGH:
-		//Only when camera working
-		if (checkDiagnostic(diag_camera)) {
-			camera_changeRes(camera_resHigh);
-			sendVisualImg();
-		}
-		//Otherwise send false
-		else
-			Serial.write(0);
+		sendVisualImg(true);
 		break;
 		//Send firmware version
 	case CMD_GET_FWVERSION:
 		sendFWVersion();
 		break;
-		//Set limits to auto
-	case CMD_SET_LIMITSAUTO:
-		setLimitsAuto();
+		//Set limits
+	case CMD_SET_LIMITS:
+		setLimits();
 		break;
-		//Set limits to manual
-	case CMD_SET_LIMITSMANUAL:
-		setLimitsManual();
+		//Set limits to locked
+	case CMD_SET_TEXTCOLOR:
+		setTextColor();
 		break;
 		//Change colorscheme
 	case CMD_SET_COLORSCHEME:
@@ -590,13 +706,29 @@ bool serialHandler() {
 	case CMD_SET_SHOWCOLORBAR:
 		setShowColorbar();
 		break;
-		//Set show temperature points
-	case CMD_SET_SHOWTEMPPOINTS:
-		setShowTempPoints();
+		//Set show min max
+	case CMD_SET_SHOWMINMAX:
+		setMinMax();
 		break;
 		//Set temperature points
 	case CMD_SET_TEMPPOINTS:
 		setTempPoints();
+		break;
+		//Get hardware version
+	case CMD_GET_HWVERSION:
+		sendHardwareVersion();
+		break;
+		//Set rotation
+	case CMD_SET_ROTATION:
+		setRotation();
+		break;
+		//Run calibration
+	case CMD_SET_CALIBRATION:
+		calibrationProcess(true, false);
+		break;
+		//Get diagnostic information
+	case CMD_GET_DIAGNOSTIC:
+		sendDiagnostic();
 		break;
 		//Send raw frame
 	case CMD_FRAME_RAW:
@@ -605,6 +737,10 @@ bool serialHandler() {
 		//Send color frame
 	case CMD_FRAME_COLOR:
 		sendFrame(true);
+		break;
+		//Send display frame
+	case CMD_FRAME_DISPLAY:
+		sendDisplayFrame();
 		break;
 		//End connection
 	case CMD_END:
@@ -647,6 +783,50 @@ void buttonHandler() {
 	}
 }
 
+/* Check for serial connection */
+void checkSerial() {
+	//If start command received
+	if ((Serial.available() > 0) && (Serial.read() == CMD_START)) {
+		serialMode = true;
+		serialConnect();
+		serialMode = false;
+	}
+
+	//Another command received, discard it
+	else if ((Serial.available() > 0))
+		Serial.read();
+}
+
+/* Check for updater requests */
+void checkForUpdater()
+{
+	//We received something
+	if (Serial.available() > 0) {
+		//Read command from Serial Port
+		byte recCmd = Serial.read();
+		//Decide what to do
+		switch (recCmd) {
+			//Send firmware version
+		case CMD_GET_FWVERSION:
+			sendFWVersion();
+			break;
+			//Get hardware version
+		case CMD_GET_HWVERSION:
+			sendHardwareVersion();
+			break;
+			//Get diagnostic information
+		case CMD_GET_DIAGNOSTIC:
+			sendDiagnostic();
+			break;
+			//Start connection, send ACK
+		case CMD_START:
+			Serial.write(CMD_START);
+			break;
+		}
+		Serial.flush();
+	}
+}
+
 /* Go into video output mode and wait for connected module */
 void serialOutput() {
 	//Send the frames
@@ -654,15 +834,14 @@ void serialOutput() {
 		//Abort transmission when touched
 		if (touch_touched() && checkDiagnostic(diag_touch))
 			break;
-		//Check warmup status
-		checkWarmup();
 		//Get the temps
-		getTemperatures();
+		if(checkDiagnostic(diag_lep_data))
+			getTemperatures();
 		//Compensate calibration with object temp
-		compensateCalib();
-		//Refresh the temp points if enabled
-		if (pointsEnabled)
-			refreshTempPoints();
+		if(checkDiagnostic(diag_spot))
+			compensateCalib();
+		//Refresh the temp points
+		refreshTempPoints();
 		//Find min and max if not in manual mode and limits not locked
 		if ((autoMode) && (!limitsLocked))
 			limitValues();
@@ -681,42 +860,19 @@ void serialOutput() {
 /* Method to init some basic values in case no display is used */
 void serialInit()
 {
-	//Send error message if important components missing
-	if (!checkDiagnostic(diag_spot))
-		Serial.println("Spot sensor FAILED");
-	//Check lepton config
-	if (!checkDiagnostic(diag_lep_conf))
-		Serial.println("Lepton I2C FAILED");
-	//Check lepton data
-	if (!checkDiagnostic(diag_lep_data))
-		Serial.println("Lepton SPI FAILED");
+	//Read all settings from EEPROM
+	readEEPROM();
+	//Select color scheme
+	selectColorScheme();
+	//Clear show temp array
+	clearTemperatures();
 
-	//Temperature format
-	tempFormat = tempFormat_celcius;
-	//Color scheme
-	colorScheme = colorScheme_rainbow;
-	colorMap = colorMap_rainbow;
-	colorElements = 256;
-	//Filter Type
-	filterType = filterType_gaussian;
-	//Display Mode
-	displayMode = displayMode_thermal;
-	//Hot / cold mode
-	hotColdMode = hotColdMode_disabled;
-	//Min/Max Points
-	minMaxPoints = minMaxPoints_disabled;
-	//Spot disable
-	spotEnabled = false;
-	//Points disable
-	pointsEnabled = false;
-	//Colorbar enable
-	colorbarEnabled = true;
-	//Calibration slope
-	byte read = EEPROM.read(eeprom_calSlopeSet);
-	if (read == eeprom_setValue)
-		readCalibration();
-	else
-		calSlope = cal_stdSlope;
+	//Set calibration status to standard
+	calStatus = cal_standard;
+
+	//Receive and send commands over serial port
+	while (true)
+		serialOutput();
 }
 
 /* Tries to establish a connection to a thermal viewer or video output module*/
@@ -732,6 +888,9 @@ void serialConnect() {
 	//Turn laser off if enabled
 	if (laserEnabled)
 		toggleLaser();
+
+	//Set calibration status to standard
+	calStatus = cal_standard;
 
 	//Send ACK for Start
 	Serial.write(CMD_START);
@@ -750,7 +909,7 @@ void serialConnect() {
 	delay(1000);
 
 	//Clear all serial buffers
-	serialClear();
+	Serial.clear();
 
 	//Change camera resolution back
 	if (displayMode == displayMode_thermal)

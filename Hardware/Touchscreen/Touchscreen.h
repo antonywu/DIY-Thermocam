@@ -37,11 +37,13 @@ void touch_init() {
 	//Capacitive screen
 	if (capTouch.begin())
 		touch_capacitive = true;
+
 	//Resistive screen or none
 	else {
 		resTouch.begin();
 		touch_capacitive = false;
 	}
+
 	//If not capacitive, check if connected
 	if (!touch_capacitive)
 	{
@@ -51,6 +53,7 @@ void touch_init() {
 		delay(10);
 		//Read one time to stabilize
 		digitalRead(pin_touch_irq);
+
 		//Init touch status
 		bool touchStatus = true;
 		//Check IRQ 10 times, should be HIGH
@@ -60,9 +63,21 @@ void touch_init() {
 				touchStatus = false;
 			delay(10);
 		}
+
+		//Comparison value depending on rotation
+		uint16_t xval, yval;
+		if (rotationEnabled) {
+			xval = 320;
+			yval = 240;
+		}
+		else {
+			xval = 0;
+			yval = 0;
+		}
+
 		//Check if touch is working, otherwise set diagnostic
-		if (!(((point.x == 0) && (point.y == 0) && (touchStatus == true))
-			|| ((point.x != 0) && (point.y != 0) && (touchStatus == false))))
+		if (!(((point.x == xval) && (point.y == yval) && (touchStatus == true))
+			|| ((point.x != xval) && (point.y != yval) && (touchStatus == false))))
 			setDiagnostic(diag_touch);
 	}
 }

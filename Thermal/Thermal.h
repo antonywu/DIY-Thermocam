@@ -192,7 +192,7 @@ void showColorBar() {
 	}
 
 	//Set text color
-	setTextColor();
+	changeTextColor();
 
 	//Calculate min and max temp in celcius/fahrenheit
 	float min = calFunction(minValue);
@@ -251,18 +251,13 @@ void changeDisplayOptions(byte* pos) {
 		colorbarEnabled = !colorbarEnabled;
 		EEPROM.write(eeprom_colorbarEnabled, colorbarEnabled);
 		break;
-		//Temperature Points
-	case 5:
-		pointsEnabled = !pointsEnabled;
-		EEPROM.write(eeprom_pointsEnabled, pointsEnabled);
-		break;
 		//Storage
-	case 6:
+	case 5:
 		storageEnabled = !storageEnabled;
 		EEPROM.write(eeprom_storageEnabled, storageEnabled);
 		break;
 		//Filter
-	case 7:
+	case 6:
 		if (filterType == filterType_box)
 			filterType = filterType_gaussian;
 		else if (filterType == filterType_gaussian)
@@ -272,7 +267,7 @@ void changeDisplayOptions(byte* pos) {
 		EEPROM.write(eeprom_filterType, filterType);
 		break;
 		//Text color
-	case 8:
+	case 7:
 		if (textColor == textColor_white)
 			textColor = textColor_black;
 		else if (textColor == textColor_black)
@@ -286,7 +281,7 @@ void changeDisplayOptions(byte* pos) {
 		EEPROM.write(eeprom_textColor, textColor);
 		break;
 		//Hottest or coldest display
-	case 9:
+	case 8:
 		if (minMaxPoints == minMaxPoints_disabled)
 			minMaxPoints = minMaxPoints_min;
 		else if (minMaxPoints == minMaxPoints_min)
@@ -412,20 +407,6 @@ void changeColorScheme(byte* pos) {
 	EEPROM.write(eeprom_colorScheme, colorScheme);
 }
 
-/* Check for serial connection */
-void checkSerial() {
-	//If start command received
-	if ((Serial.available() > 0) && (Serial.read() == CMD_START)) {
-		serialMode = true;
-		serialConnect();
-		serialMode = false;
-	}
-
-	//Another command received, discard it
-	else if ((Serial.available() > 0))
-		Serial.read();
-}
-
 /* Show the thermal/visual/combined image on the screen */
 void showImage() {
 	//Draw thermal image on screen if created previously and not in menu nor in video save
@@ -504,4 +485,5 @@ void liveMode() {
 		if (longTouch)
 			longTouchHandler();
 	}
+
 }

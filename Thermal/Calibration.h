@@ -88,7 +88,7 @@ void compensateCalib() {
 		if (mlx90614_temp < (min - 1))
 			calComp = mlx90614_temp - min;
 		//If spot temp is higher than current maximum by one degree, raise maximum
-		else if (mlx90614_temp >(max + 1))
+		else if (mlx90614_temp > (max + 1))
 			calComp = mlx90614_temp - max;
 	}
 	//Calculate offset out of ambient temp
@@ -148,7 +148,7 @@ int linreg(int n, const uint16_t x[], const float y[], float* m, float* b, float
 }
 
 /* Run the calibration process */
-void calibrationProcess(bool firstStart) {
+void calibrationProcess(bool serial, bool firstStart) {
 	//Variables
 	float calMLX90614[100];
 	uint16_t calLepton[100];
@@ -162,8 +162,10 @@ void calibrationProcess(bool firstStart) {
 
 	//Repeat as long as there is a good calibration
 	do {
-		//Show the screen
-		calibrationScreen(firstStart);
+		//Show the screen when not using serial mode
+		if (!serial)
+			calibrationScreen(firstStart);
+
 		//Reset counter to zero
 		int counter = 0;
 
@@ -173,16 +175,20 @@ void calibrationProcess(bool firstStart) {
 
 		//Get 100 different calibration samples
 		while (counter < 100) {
+			//Store time elapsed
 			long timeElapsed = millis();
 
 			//Repeat measurement as long as there is no new average
 			do {
 				//Safe delay for bad PCB routing
 				delay(10);
-				//Get temp and calc average
+				//Get temperatures
 				getTemperatures();
+				//Calculate the average
 				average = calcAverage();
 			} while ((average == average_old) || (average == 0));
+
+			//Store old average
 			average_old = average;
 
 			//If the temperature changes too much, do not take that measurement
@@ -190,46 +196,72 @@ void calibrationProcess(bool firstStart) {
 				//Store values
 				calLepton[counter] = average;
 				calMLX90614[counter] = mlx90614_temp;
+
 				//Find minimum and maximum value
 				if (average > maxValue)
 					maxValue = average;
 				if (average < minValue)
 					minValue = average;
-				if ((counter % 10) == 0) {
+
+				//Refresh status on screen in steps of 10, not for serial
+				if (((counter % 10) == 0) && !serial) {
 					char buffer[20];
 					sprintf(buffer, "Status: %2d%%", counter);
 					display_print(buffer, CENTER, 140);
 				}
+
+				//When doing this in serial mode, print counter
+				if (serial)
+					Serial.write(counter);
+
+				//Raise counter
 				counter++;
 			}
+
+			//Store old spot temperature
 			mlx90614_old = mlx90614_temp;
 
 			//Wait at least 111ms between two measurements (9Hz)
 			while ((millis() - timeElapsed) < 111);
-			//If the user wants to abort and is not in first start
-			if ((touch_touched() == true) && (firstStart == false)) {
+
+			//If the user wants to abort and is not in first start or serial mode
+			if (touch_touched() && !firstStart && !serial) {
 				int pressedButton = buttons_checkButtons(true);
 				//Abort
-				if (pressedButton == 0) {
+				if (pressedButton == 0)
 					return;
-				}
 			}
 		}
 
 		//Calculate the calibration formula with least square fit
 		linreg(100, calLepton, calMLX90614, &calSlope, &calOffset, &calCorrelation);
+
 		//Set calibration to manual
 		calStatus = cal_manual;
+
 		//Set compensation to zero
 		calComp = 0;
 
+		//When in serial mode, store and send ACK
+		if (serial)
+		{
+			//Save calibration to EEPROM
+			storeCalibration();
+			//Send ACK
+			Serial.write(CMD_SET_CALIBRATION);
+			//Leave 
+			return;
+		}
+
 		//In case the calibration was not good, ask to repeat
 		if (calCorrelation < 0.5) {
+
 			//When in first start mode
 			if (firstStart) {
 				showFullMessage((char*) "Bad calibration, try again!", true);
 				delay(1000);
 			}
+
 			//If the user does not want to repeat, discard
 			else if (!calibrationRepeat()) {
 				calSlope = cal_stdSlope;
@@ -246,11 +278,13 @@ void calibrationProcess(bool firstStart) {
 
 	//Save calibration to EEPROM
 	storeCalibration();
+
 	//Show message if not in first start menu
 	if (firstStart == false) {
 		showFullMessage((char*) "Calibration written to EEPROM!", true);
 		delay(1000);
 	}
+
 	//Restore old font
 	display_setFont(smallFont);
 }

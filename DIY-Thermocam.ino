@@ -15,8 +15,8 @@
 
 /* Current firmware version */
 
-#define Version "Firmware 2.30 from 29.11.2016"
-#define fwVersion 230
+#define Version "Firmware 2.31 from 11.12.2016"
+#define fwVersion 231
 
 /* External Libraries */
 
@@ -51,7 +51,7 @@ void setup()
 
 	//Enter USB connection if no display attached
 	if (checkNoDisplay())
-		goto usbConnection;
+		serialInit();
 
 	//Check for hardware issues
 	checkDiagnostic();
@@ -72,15 +72,12 @@ void setup()
 
 	//Go to the live Mode
 	liveMode();
-
-usbConnection:
-	//Go to the USB connection
-	serialInit();
+	
 }
 
-/* Loop forever, only serial mode without display */
+/* Loop not used */
 
 void loop()
 {
-	serialOutput();
+	
 }

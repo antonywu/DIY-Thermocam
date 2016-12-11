@@ -24,21 +24,25 @@ void displayBatteryStatus() {
 		checkBattery();
 		batTimer = millis();
 	}
+
 	//USB Power only
 	if (batPercentage == -1)
 		display_print((char*) "USB Power", 240, 0);
+
 	//Low Battery
 	else if (batPercentage == 0)
 		display_print((char*) "LOW", 270, 0);
+
 	//Display battery status in percentage
 	else {
 		//Charging, show plus symbol
-		if(analogRead(pin_usb_measure) > 50)
+		if ((analogRead(pin_usb_measure) > 50) && (batPercentage != 100))
 		{
 			display_printNumI(batPercentage, 270, 0, 3, ' ');
 			display_print((char*) "%", 300, 0);
 			display_print((char*) "+", 310, 0);
 		}
+
 		//Not charging
 		else
 		{
@@ -58,6 +62,7 @@ void displayTime() {
 		display_print((char*) ":", 45, 228);
 		display_printNumI(second(), 49, 228, 2, '0');
 	}
+
 	//Small font
 	else
 	{
@@ -79,6 +84,7 @@ void displayDate() {
 		display_print((char*) ".", 45, 0);
 		display_printNumI(year(), 49, 0, 4);
 	}
+
 	//Small font
 	else
 	{
@@ -93,6 +99,8 @@ void displayDate() {
 /* Display the warmup message on screen*/
 void displayWarmup() {
 	char buffer[25];
+
+	//Create string
 	sprintf(buffer, "Sensor warmup, %2ds left", (int)abs(60 - ((millis() - calTimer) / 1000)));
 	//Tinyfont
 	if (teensyVersion == teensyVersion_old)
@@ -108,8 +116,10 @@ void displayMinMaxPoint(uint16_t pixelIndex, const char *str)
 	uint16_t xpos, ypos;
 	//Calculate x and y position
 	calculateMinMaxPoint(&xpos, &ypos, pixelIndex);
+
 	//Draw the marker
 	display_drawLine(xpos, ypos, xpos, ypos);
+
 	//Draw the string
 	xpos += 4;
 	if (xpos >= 310)
@@ -133,11 +143,13 @@ void displayFreeSpace() {
 void showSpot() {
 	//Draw the spot circle
 	display_drawCircle(160, 120, 12);
+
 	//Draw the lines
 	display_drawLine(136, 120, 148, 120);
 	display_drawLine(172, 120, 184, 120);
 	display_drawLine(160, 96, 160, 108);
 	display_drawLine(160, 132, 160, 144);
+
 	//Convert to float with a special method
 	char buffer[10];
 	floatToChar(buffer, mlx90614_temp);
@@ -147,9 +159,10 @@ void showSpot() {
 /* Display addition information on the screen */
 void displayInfos() {
 	//Set text color
-	setTextColor();
+	changeTextColor();
 	//Set font and background
 	display_setBackColor(VGA_TRANSPARENT);
+	
 	//For Teensy 3.6, set small font
 	if (teensyVersion == teensyVersion_new)
 		display_setFont(smallFont);
@@ -159,6 +172,7 @@ void displayInfos() {
 
 	//Set write to image, not display
 	display_writeToImage = true;
+
 	//Check warmup
 	checkWarmup();
 
@@ -177,24 +191,26 @@ void displayInfos() {
 		if (storageEnabled)
 			displayFreeSpace();
 		//Display warmup if required
-		if ((!videoSave) && (calStatus == cal_warmup))
+		if (calStatus == cal_warmup)
 			displayWarmup();
-		//Show the minimum / maximum points
-		if (minMaxPoints & minMaxPoints_min)
-			displayMinMaxPoint(minTempPos, (const char *)"C");
-		if (minMaxPoints & minMaxPoints_max)
-			displayMinMaxPoint(maxTempPos, (const char *)"H");
 	}
+
+	//Show the minimum / maximum points
+	if (minMaxPoints & minMaxPoints_min)
+		displayMinMaxPoint(minTempPos, (const char *)"C");
+	if (minMaxPoints & minMaxPoints_max)
+		displayMinMaxPoint(maxTempPos, (const char *)"H");
 
 	//Show the spot in the middle
 	if (spotEnabled)
 		showSpot();
+
 	//Show the color bar when warmup is over and if enabled, not in visual mode
 	if ((colorbarEnabled) && (calStatus != cal_warmup) && (displayMode != displayMode_visual))
 		showColorBar();
+
 	//Show the temperature points
-	if (pointsEnabled)
-		showTemperatures();
+	showTemperatures();
 
 	//Set write back to display
 	display_writeToImage = false;

@@ -225,9 +225,7 @@ redraw:
 			int pressedButton = buttons_checkButtons(true);
 			//Add
 			if (pressedButton == 0) {
-				tempPointFunction();
-				//Enable points show
-				pointsEnabled = true;
+				tempPointFunction(false);
 				goto redraw;
 			}
 			//Remove
@@ -421,7 +419,7 @@ void hotColdChooser() {
 	//Set text color
 	display_setFont(smallFont);
 	display_setBackColor(VGA_TRANSPARENT);
-	setTextColor();
+	changeTextColor();
 
 	//Find min and max values
 	if ((autoMode) && (!limitsLocked)) {
@@ -638,7 +636,7 @@ bool tempLimitsManualHandler() {
 		//Set font & text color
 		display_setFont(smallFont);
 		display_setBackColor(VGA_TRANSPARENT);
-		setTextColor();
+		changeTextColor();
 
 		//Update minimum & maximum
 		min = (int)round(calFunction(minValue));
@@ -964,22 +962,15 @@ void liveDispMenuString(int pos) {
 		else
 			text = (char*) "Bar Off";
 		break;
-		//Temperature Points
-	case 5:
-		if (pointsEnabled)
-			text = (char*) "Points On";
-		else
-			text = (char*) "Points Off";
-		break;
 		//Storage
-	case 6:
+	case 5:
 		if (storageEnabled)
 			text = (char*) "Storage On";
 		else
 			text = (char*) "Storage Off";
 		break;
 		//Filter
-	case 7:
+	case 6:
 		if (filterType == filterType_box)
 			text = (char*) "Box-Filter";
 		else if (filterType == filterType_gaussian)
@@ -988,7 +979,7 @@ void liveDispMenuString(int pos) {
 			text = (char*) "No Filter";
 		break;
 		//Text Color
-	case 8:
+	case 7:
 		if (textColor == textColor_black)
 			text = (char*) "Black Text";
 		else if (textColor == textColor_red)
@@ -1001,7 +992,7 @@ void liveDispMenuString(int pos) {
 			text = (char*) "White Text";
 		break;
 		//Hottest or coldest
-	case 9:
+	case 8:
 		if (minMaxPoints == minMaxPoints_disabled)
 			text = (char*) "No Cold/Hot";
 		else if (minMaxPoints == minMaxPoints_min)
@@ -1047,13 +1038,13 @@ bool liveDispMenu() {
 				if (displayOptionsPos > 0)
 					displayOptionsPos--;
 				else if (displayOptionsPos == 0)
-					displayOptionsPos = 9;
+					displayOptionsPos = 8;
 			}
 			//FORWARD
 			else if (pressedButton == 1) {
-				if (displayOptionsPos < 9)
+				if (displayOptionsPos < 8)
 					displayOptionsPos++;
-				else if (displayOptionsPos == 9)
+				else if (displayOptionsPos == 8)
 					displayOptionsPos = 0;
 			}
 			//Change the menu name
@@ -1433,6 +1424,8 @@ void mainMenu() {
 	buttons_deleteAllButtons();
 	//Wait a short time
 	delay(500);
+	//Clear serial buffer
+	Serial.clear();
 	//Disable menu marker
 	showMenu = false;
 }

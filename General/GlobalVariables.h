@@ -65,10 +65,8 @@ bool timeEnabled;
 bool dateEnabled;
 bool spotEnabled;
 bool colorbarEnabled;
-bool pointsEnabled;
 bool storageEnabled;
 byte filterType;
-bool ambientEnabled;
 byte minMaxPoints;
 
 //Temperature format
@@ -128,8 +126,8 @@ byte hotColdMode;
 int16_t hotColdLevel;
 byte hotColdColor;
 
-//Array to store the printed temperatures
-uint16_t showTemp[192];
+//Array to store the tempPoints
+uint16_t tempPoints[96][2];
 
 //Adjust combined image
 float adjCombAlpha;

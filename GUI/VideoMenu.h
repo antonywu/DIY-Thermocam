@@ -193,7 +193,7 @@ void videoCaptureInterval(int16_t* remainingTime, int* framesCaptured, char* dir
 		display_print((char*) "Interval capture", CENTER, 20);
 
 		//Save visual image if activated and camera connected
-		if (visualEnabled && ((videoInterval >= 10) || 
+		if (visualEnabled && ((videoInterval >= 10) ||
 			teensyVersion == teensyVersion_new) && checkDiagnostic(diag_camera)) {
 			//Display message
 			sprintf(buffer, "Saving thermal + visual now!");
@@ -274,7 +274,7 @@ void videoCapture() {
 	createVideoFolder(dirname);
 
 	//Set text colors
-	setTextColor();
+	changeTextColor();
 	display_setBackColor(VGA_TRANSPARENT);
 
 	//Switch to recording mode
@@ -295,8 +295,7 @@ void videoCapture() {
 		compensateCalib();
 
 		//Refresh the temp points if required
-		if (pointsEnabled)
-			refreshTempPoints();
+		refreshTempPoints();
 
 		//Find min and max if not in manual mode and limits not locked
 		if ((autoMode) && (!limitsLocked))

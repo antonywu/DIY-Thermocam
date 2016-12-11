@@ -88,18 +88,27 @@ void clearData() {
 void displayRawData() {
 	//Select Color Scheme
 	selectColorScheme();
+
 	//Apply low-pass filter
 	if (filterType == filterType_box)
 		boxFilter();
 	else if (filterType == filterType_gaussian)
 		gaussianFilter();
+
+	//Find min / max position
+	if (minMaxPoints != minMaxPoints_disabled)
+		findMinMaxPositions();
+
 	//Teensy 3.6 - Resize to big buffer
 	if (teensyVersion == teensyVersion_new)
 		smallToBigBuffer();
+
 	//Convert lepton data to RGB565 colors
 	convertColors();
+
 	//Display additional information
 	displayInfos();
+
 	//Display on screen
 	displayBuffer();
 }
@@ -262,8 +271,8 @@ void loadRawData(char* filename, char* dirname) {
 	spotEnabled = sdFile.read();
 	//Read colorbar enabled
 	colorbarEnabled = sdFile.read();
-	//Read points enabled
-	pointsEnabled = sdFile.read();
+	//Read min max enabled
+	minMaxPoints = sdFile.read();
 
 	//Read calibration offset
 	for (int i = 0; i < 4; i++)
@@ -277,11 +286,12 @@ void loadRawData(char* filename, char* dirname) {
 	//Read temperature points
 	clearTemperatures();
 	if ((fileSize == lepton3_big) || (fileSize == lepton2_big)) {
-		for (int i = 0; i < 192; i++) {
-			//Read Min
-			msb = sdFile.read();
-			lsb = sdFile.read();
-			showTemp[i] = (((msb) << 8) + lsb);
+		//Go through the array
+		for (byte i = 0; i < 96; i++) {
+			//Read index
+			tempPoints[i][0] = (sdFile.read() << 8) + sdFile.read();
+			//Read value
+			tempPoints[i][1] = (sdFile.read() << 8) + sdFile.read();
 		}
 	}
 
