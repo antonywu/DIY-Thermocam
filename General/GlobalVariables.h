@@ -48,15 +48,15 @@ ADC *batMeasure;
 int8_t batPercentage;
 long batTimer;
 
-//If enabled, image will be converted to bitmap every time
+//Convert RAW to BMP
 bool convertEnabled;
-//If enabled, visual image will be saved automatically
+//Save visual image
 bool visualEnabled;
 //Automatic mode
 bool autoMode;
 //Lock current limits
 bool limitsLocked;
-//Display rotation enabled
+//Display rotation
 bool rotationEnabled;
 
 //Display options
@@ -119,7 +119,9 @@ uint16_t minValue;
 
 //Position of min and maxtemp
 uint16_t minTempPos;
+uint16_t minTempVal;
 uint16_t maxTempPos;
+uint16_t maxTempVal;
 
 //Hot / Cold mode
 byte hotColdMode;

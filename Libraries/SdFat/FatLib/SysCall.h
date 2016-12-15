@@ -25,28 +25,16 @@
  */
 #if defined(ARDUINO)
 #include <Arduino.h>
-#include "../SPI/SPI.h"
+#include "../../SPI/SPI.h"
 #elif defined(PLATFORM_ID)  // Only defined if a Particle device
 #include "application.h"
 #else  // defined(ARDUINO)
 #error "Unknown system"
 #endif  // defined(ARDUINO)
-//-----------------------------------------------------------------------------
-#ifdef ESP8266
-// undefine F macro if ESP8266.
-#undef F
-#endif  // ESP8266
-//-----------------------------------------------------------------------------
 #ifndef F
 /** Define macro for strings stored in flash. */
 #define F(str) (str)
 #endif  // F
-//-----------------------------------------------------------------------------
-/** \return the time in milliseconds. */
-inline uint16_t curTimeMS() {
-  return millis();
-}
-//-----------------------------------------------------------------------------
 /**
  * \class SysCall
  * \brief SysCall - Class to wrap system calls.
@@ -62,7 +50,6 @@ class SysCall {
   /** Yield to other threads. */
   static void yield();
 };
-
 #if defined(ESP8266)
 inline void SysCall::yield() {
   // Avoid ESP8266 bug
@@ -77,7 +64,8 @@ inline void SysCall::yield() {
 inline void SysCall::yield() {
   Particle.process();
 }
-#else  // ESP8266
+#else  // defined(ARDUINO)
 inline void SysCall::yield() {}
-#endif  // ESP8266
+#endif  // defined(ARDUINO)
+
 #endif  // SysCall_h

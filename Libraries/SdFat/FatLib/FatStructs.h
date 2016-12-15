@@ -29,11 +29,11 @@
  */
 //------------------------------------------------------------------------------
 /** Value for byte 510 of boot block or MBR */
-const uint8_t BOOTSIG0 = 0X55;
+uint8_t const BOOTSIG0 = 0X55;
 /** Value for byte 511 of boot block or MBR */
-const uint8_t BOOTSIG1 = 0XAA;
+uint8_t const BOOTSIG1 = 0XAA;
 /** Value for bootSignature field int FAT/FAT32 boot sector */
-const uint8_t EXTENDED_BOOT_SIG = 0X29;
+uint8_t const EXTENDED_BOOT_SIG = 0X29;
 //------------------------------------------------------------------------------
 /**
  * \struct partitionTable
@@ -525,9 +525,9 @@ struct fat32_boot {
 typedef struct fat32_boot fat32_boot_t;
 //------------------------------------------------------------------------------
 /** Lead signature for a FSINFO sector */
-const uint32_t FSINFO_LEAD_SIG = 0x41615252;
+uint32_t const FSINFO_LEAD_SIG = 0x41615252;
 /** Struct signature for a FSINFO sector */
-const uint32_t FSINFO_STRUCT_SIG = 0x61417272;
+uint32_t const FSINFO_STRUCT_SIG = 0x61417272;
 /**
  * \struct fat32_fsinfo
  *
@@ -566,19 +566,19 @@ typedef struct fat32_fsinfo fat32_fsinfo_t;
 //------------------------------------------------------------------------------
 // End Of Chain values for FAT entries
 /** FAT12 end of chain value used by Microsoft. */
-const uint16_t FAT12EOC = 0XFFF;
+uint16_t const FAT12EOC = 0XFFF;
 /** Minimum value for FAT12 EOC.  Use to test for EOC. */
-const uint16_t FAT12EOC_MIN = 0XFF8;
+uint16_t const FAT12EOC_MIN = 0XFF8;
 /** FAT16 end of chain value used by Microsoft. */
-const uint16_t FAT16EOC = 0XFFFF;
+uint16_t const FAT16EOC = 0XFFFF;
 /** Minimum value for FAT16 EOC.  Use to test for EOC. */
-const uint16_t FAT16EOC_MIN = 0XFFF8;
+uint16_t const FAT16EOC_MIN = 0XFFF8;
 /** FAT32 end of chain value used by Microsoft. */
-const uint32_t FAT32EOC = 0X0FFFFFFF;
+uint32_t const FAT32EOC = 0X0FFFFFFF;
 /** Minimum value for FAT32 EOC.  Use to test for EOC. */
-const uint32_t FAT32EOC_MIN = 0X0FFFFFF8;
+uint32_t const FAT32EOC_MIN = 0X0FFFFFF8;
 /** Mask a for FAT32 entry. Entries are 28 bits. */
-const uint32_t FAT32MASK = 0X0FFFFFFF;
+uint32_t const FAT32MASK = 0X0FFFFFFF;
 //------------------------------------------------------------------------------
 /**
  * \struct directoryEntry
@@ -665,33 +665,33 @@ typedef struct directoryEntry dir_t;
 // Definitions for directory entries
 //
 /** escape for name[0] = 0XE5 */
-const uint8_t DIR_NAME_0XE5 = 0X05;
+uint8_t const DIR_NAME_0XE5 = 0X05;
 /** name[0] value for entry that is free after being "deleted" */
-const uint8_t DIR_NAME_DELETED = 0XE5;
+uint8_t const DIR_NAME_DELETED = 0XE5;
 /** name[0] value for entry that is free and no allocated entries follow */
-const uint8_t DIR_NAME_FREE = 0X00;
+uint8_t const DIR_NAME_FREE = 0X00;
 /** file is read-only */
-const uint8_t DIR_ATT_READ_ONLY = 0X01;
+uint8_t const DIR_ATT_READ_ONLY = 0X01;
 /** File should e hidden in directory listings */
-const uint8_t DIR_ATT_HIDDEN = 0X02;
+uint8_t const DIR_ATT_HIDDEN = 0X02;
 /** Entry is for a system file */
-const uint8_t DIR_ATT_SYSTEM = 0X04;
+uint8_t const DIR_ATT_SYSTEM = 0X04;
 /** Directory entry contains the volume label */
-const uint8_t DIR_ATT_VOLUME_ID = 0X08;
+uint8_t const DIR_ATT_VOLUME_ID = 0X08;
 /** Entry is for a directory */
-const uint8_t DIR_ATT_DIRECTORY = 0X10;
+uint8_t const DIR_ATT_DIRECTORY = 0X10;
 /** Old DOS archive bit for backup support */
-const uint8_t DIR_ATT_ARCHIVE = 0X20;
+uint8_t const DIR_ATT_ARCHIVE = 0X20;
 /** Test value for long name entry.  Test is
   (d->attributes & DIR_ATT_LONG_NAME_MASK) == DIR_ATT_LONG_NAME. */
-const uint8_t DIR_ATT_LONG_NAME = 0X0F;
+uint8_t const DIR_ATT_LONG_NAME = 0X0F;
 /** Test mask for long name entry */
-const uint8_t DIR_ATT_LONG_NAME_MASK = 0X3F;
+uint8_t const DIR_ATT_LONG_NAME_MASK = 0X3F;
 /** defined attribute bits */
-const uint8_t DIR_ATT_DEFINED_BITS = 0X3F;
+uint8_t const DIR_ATT_DEFINED_BITS = 0X3F;
 
 /** Mask for file/subdirectory tests */
-const uint8_t DIR_ATT_FILE_TYPE_MASK = (DIR_ATT_VOLUME_ID | DIR_ATT_DIRECTORY);
+uint8_t const DIR_ATT_FILE_TYPE_MASK = (DIR_ATT_VOLUME_ID | DIR_ATT_DIRECTORY);
 
 /** Filename base-name is all lower case */
 const uint8_t DIR_NT_LC_BASE = 0X08;
@@ -818,9 +818,9 @@ static inline uint8_t FAT_SECOND(uint16_t fatTime) {
   return 2*(fatTime & 0X1F);
 }
 /** Default date for file timestamps is 1 Jan 2000 */
-const uint16_t FAT_DEFAULT_DATE = ((2000 - 1980) << 9) | (1 << 5) | 1;
+uint16_t const FAT_DEFAULT_DATE = ((2000 - 1980) << 9) | (1 << 5) | 1;
 /** Default time for file timestamp is 1 am */
-const uint16_t FAT_DEFAULT_TIME = (1 << 11);
+uint16_t const FAT_DEFAULT_TIME = (1 << 11);
 //------------------------------------------------------------------------------
 /** Dimension of first name field in long directory entry */
 const uint8_t LDIR_NAME1_DIM = 5;

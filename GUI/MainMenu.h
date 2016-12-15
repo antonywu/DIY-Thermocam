@@ -235,7 +235,7 @@ redraw:
 			}
 			//Clear
 			if (pressedButton == 2) {
-				clearTemperatures();
+				clearTempPoints();
 				showFullMessage((char*)"All points cleared!", true);
 				delay(1000);
 				goto redraw;

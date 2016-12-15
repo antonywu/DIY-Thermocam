@@ -19,47 +19,44 @@
     <Filter Include="Hardware\Touchscreen">
       <UniqueIdentifier>{03e617e5-3968-4699-93e1-2ac2de709fd1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Libraries">
-      <UniqueIdentifier>{1aeb9025-2be7-4caa-aed7-cac8c06aa5c1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\ADC">
-      <UniqueIdentifier>{1d800118-9960-4af6-8727-1b0ff7d6343d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\Bounce">
-      <UniqueIdentifier>{afe36c91-58d0-4794-8b02-1045eced2925}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\EEPROM">
-      <UniqueIdentifier>{f0fb99cb-63e7-4537-8270-75f835f1d744}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\I2C">
-      <UniqueIdentifier>{65c9e073-f159-4252-9e4a-6c7a3f85c4eb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\Metro">
-      <UniqueIdentifier>{ed9a1616-fbb2-447f-9c8a-5565072f5946}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\SdFat">
-      <UniqueIdentifier>{7dbfbc4f-5b5a-4d01-99dc-99c158c70453}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\SdFat\FatLib">
-      <UniqueIdentifier>{71e151b1-c71a-4453-a8da-3dcf2f5805c6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\SdFat\SdCard">
-      <UniqueIdentifier>{436e40a6-aeba-4eba-bd30-f19622025b4d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\SdFat\SpiDriver">
-      <UniqueIdentifier>{7642b00b-4132-487c-88cd-f7ccfa3b0ef6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\SdFat\SpiDriver\boards">
-      <UniqueIdentifier>{8cac8e70-7eaa-432f-bf42-b151b40c6bdc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\SPI">
-      <UniqueIdentifier>{0d20fdc2-20fa-4c6f-8ba5-20098123b3a4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Libraries\Time">
-      <UniqueIdentifier>{ad7637bc-1f94-4343-95e8-e6a2a0970ece}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Thermal">
       <UniqueIdentifier>{8d27e91e-9b51-48fa-94de-fd9f08a168fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries">
+      <UniqueIdentifier>{6eef1f4b-f26f-4168-916f-0b3785173a88}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\SPI">
+      <UniqueIdentifier>{12a907a8-2228-4874-bbf4-9648579259e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\I2C">
+      <UniqueIdentifier>{3e0b8949-5a87-4904-b1ad-d93b188e009d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\SD">
+      <UniqueIdentifier>{cc03dcc1-2a5a-406e-9f87-f3db6a6802a2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\SD\FatLib">
+      <UniqueIdentifier>{e0b0209d-b13d-4cbd-9205-258af38b89cc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\SD\SdSpiCard">
+      <UniqueIdentifier>{f51f3b34-5759-4d9f-a4b3-0b9d21243750}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\SD\SdSpiCard\boards">
+      <UniqueIdentifier>{69588bda-1fa7-428a-8bdd-b6b487c878ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\Time">
+      <UniqueIdentifier>{eace8a2c-eb45-4f3d-a995-e6f82e4c5859}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\EEPROM">
+      <UniqueIdentifier>{c1b63c6d-637c-4d3d-83fe-2a195296bc92}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\Debouncer">
+      <UniqueIdentifier>{e6a27cb6-318a-4b83-ad00-7b034257a3d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\ADC">
+      <UniqueIdentifier>{2639083e-e0f5-4f67-aa35-7092fa8fdf58}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\Timer">
+      <UniqueIdentifier>{45fe4133-92bf-4fa7-9e0b-deee70a65f61}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -161,156 +158,6 @@
     <ClInclude Include="Hardware\Touchscreen\XPT2046_Touchscreen.h">
       <Filter>Hardware\Touchscreen</Filter>
     </ClInclude>
-    <ClInclude Include="Libraries\ADC\ADC.h">
-      <Filter>Libraries\ADC</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\ADC\ADC_Module.h">
-      <Filter>Libraries\ADC</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\Bounce\Bounce.h">
-      <Filter>Libraries\Bounce</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\EEPROM\EEPROM.h">
-      <Filter>Libraries\EEPROM</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\I2C\i2c_t3.h">
-      <Filter>Libraries\I2C</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\Metro\Metro.h">
-      <Filter>Libraries\Metro</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\BlockDriver.h">
-      <Filter>Libraries\SdFat</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FreeStack.h">
-      <Filter>Libraries\SdFat</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\MinimumSerial.h">
-      <Filter>Libraries\SdFat</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SdFat.h">
-      <Filter>Libraries\SdFat</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SdFatConfig.h">
-      <Filter>Libraries\SdFat</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SysCall.h">
-      <Filter>Libraries\SdFat</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\ArduinoFiles.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\ArduinoStream.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\BaseBlockDriver.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\bufstream.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\FatApiConstants.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\FatFile.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\FatFileSystem.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\FatLib.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\FatLibConfig.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\FatStructs.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\FatVolume.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\FmtNumber.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\fstream.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\ios.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\iostream.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\istream.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\ostream.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\FatLib\StdioStream.h">
-      <Filter>Libraries\SdFat\FatLib</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SdCard\SdInfo.h">
-      <Filter>Libraries\SdFat\SdCard</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SdCard\SdioCard.h">
-      <Filter>Libraries\SdFat\SdCard</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SdCard\SdSpiCard.h">
-      <Filter>Libraries\SdFat\SdCard</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\DigitalPin.h">
-      <Filter>Libraries\SdFat\SpiDriver</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\SdSpiBaseDriver.h">
-      <Filter>Libraries\SdFat\SpiDriver</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\SdSpiDriver.h">
-      <Filter>Libraries\SdFat\SpiDriver</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\SoftSPI.h">
-      <Filter>Libraries\SdFat\SpiDriver</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\boards\AvrDevelopersGpioPinMap.h">
-      <Filter>Libraries\SdFat\SpiDriver\boards</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\boards\BobuinoGpioPinMap.h">
-      <Filter>Libraries\SdFat\SpiDriver\boards</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\boards\GpioPinMap.h">
-      <Filter>Libraries\SdFat\SpiDriver\boards</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\boards\LeonardoGpioPinMap.h">
-      <Filter>Libraries\SdFat\SpiDriver\boards</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\boards\MegaGpioPinMap.h">
-      <Filter>Libraries\SdFat\SpiDriver\boards</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\boards\SleepingBeautyGpioPinMap.h">
-      <Filter>Libraries\SdFat\SpiDriver\boards</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\boards\Standard1284GpioPinMap.h">
-      <Filter>Libraries\SdFat\SpiDriver\boards</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\boards\Teensy2GpioPinMap.h">
-      <Filter>Libraries\SdFat\SpiDriver\boards</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\boards\Teensy2ppGpioPinMap.h">
-      <Filter>Libraries\SdFat\SpiDriver\boards</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SdFat\SpiDriver\boards\UnoGpioPinMap.h">
-      <Filter>Libraries\SdFat\SpiDriver\boards</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\SPI\SPI.h">
-      <Filter>Libraries\SPI</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\Time\Time.h">
-      <Filter>Libraries\Time</Filter>
-    </ClInclude>
-    <ClInclude Include="Libraries\Time\TimeLib.h">
-      <Filter>Libraries\Time</Filter>
-    </ClInclude>
     <ClInclude Include="Thermal\Calibration.h">
       <Filter>Thermal</Filter>
     </ClInclude>
@@ -325,6 +172,150 @@
     </ClInclude>
     <ClInclude Include="Thermal\Thermal.h">
       <Filter>Thermal</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FreeStack.h">
+      <Filter>Libraries\SD</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\MinimumSerial.h">
+      <Filter>Libraries\SD</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdFat.h">
+      <Filter>Libraries\SD</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdFatConfig.h">
+      <Filter>Libraries\SD</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdFatUtil.h">
+      <Filter>Libraries\SD</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SystemInclude.h">
+      <Filter>Libraries\SD</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\ArduinoFiles.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\ArduinoStream.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\bufstream.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\FatApiConstants.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\FatFile.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\FatFileSystem.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\FatLib.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\FatLibConfig.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\FatStructs.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\FatVolume.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\FmtNumber.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\fstream.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\ios.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\iostream.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\istream.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\ostream.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\StdioStream.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\FatLib\SysCall.h">
+      <Filter>Libraries\SD\FatLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\DigitalPin.h">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\SdInfo.h">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\SdSpi.h">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\SdSpiCard.h">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\SoftSPI.h">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\boards\AvrDevelopersGpioPinMap.h">
+      <Filter>Libraries\SD\SdSpiCard\boards</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\boards\BobuinoGpioPinMap.h">
+      <Filter>Libraries\SD\SdSpiCard\boards</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\boards\GpioPinMap.h">
+      <Filter>Libraries\SD\SdSpiCard\boards</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\boards\LeonardoGpioPinMap.h">
+      <Filter>Libraries\SD\SdSpiCard\boards</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\boards\MegaGpioPinMap.h">
+      <Filter>Libraries\SD\SdSpiCard\boards</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\boards\SleepingBeautyGpioPinMap.h">
+      <Filter>Libraries\SD\SdSpiCard\boards</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\boards\Standard1284GpioPinMap.h">
+      <Filter>Libraries\SD\SdSpiCard\boards</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\boards\Teensy2GpioPinMap.h">
+      <Filter>Libraries\SD\SdSpiCard\boards</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\boards\Teensy2ppGpioPinMap.h">
+      <Filter>Libraries\SD\SdSpiCard\boards</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SdFat\SdSpiCard\boards\UnoGpioPinMap.h">
+      <Filter>Libraries\SD\SdSpiCard\boards</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\SPI\SPI.h">
+      <Filter>Libraries\SPI</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\Time\Time.h">
+      <Filter>Libraries\Time</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\Time\TimeLib.h">
+      <Filter>Libraries\Time</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\I2C\i2c_t3.h">
+      <Filter>Libraries\I2C</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\EEPROM\EEPROM.h">
+      <Filter>Libraries\EEPROM</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\Bounce\Bounce.h">
+      <Filter>Libraries\Debouncer</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\ADC\ADC.h">
+      <Filter>Libraries\ADC</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\ADC\ADC_Module.h">
+      <Filter>Libraries\ADC</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\Metro\Metro.h">
+      <Filter>Libraries\Timer</Filter>
     </ClInclude>
     <ClInclude Include="__vm\.DIY-Thermocam.vsarduino.h" />
   </ItemGroup>
@@ -341,80 +332,62 @@
     <ClCompile Include="Hardware\Touchscreen\XPT2046_Touchscreen.cpp">
       <Filter>Hardware\Touchscreen</Filter>
     </ClCompile>
-    <ClCompile Include="Libraries\ADC\ADC.cpp">
-      <Filter>Libraries\ADC</Filter>
-    </ClCompile>
-    <ClCompile Include="Libraries\ADC\ADC_Module.cpp">
-      <Filter>Libraries\ADC</Filter>
-    </ClCompile>
-    <ClCompile Include="Libraries\Bounce\Bounce.cpp">
-      <Filter>Libraries\Bounce</Filter>
-    </ClCompile>
-    <ClCompile Include="Libraries\EEPROM\EEPROM.cpp">
-      <Filter>Libraries\EEPROM</Filter>
-    </ClCompile>
-    <ClCompile Include="Libraries\I2C\i2c_t3.cpp">
-      <Filter>Libraries\I2C</Filter>
-    </ClCompile>
-    <ClCompile Include="Libraries\Metro\Metro.cpp">
-      <Filter>Libraries\Metro</Filter>
-    </ClCompile>
     <ClCompile Include="Libraries\SdFat\MinimumSerial.cpp">
-      <Filter>Libraries\SdFat</Filter>
+      <Filter>Libraries\SD</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\SdFat\SdFat.cpp">
+      <Filter>Libraries\SD</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\SdFat\SdFatUtil.cpp">
+      <Filter>Libraries\SD</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SdFat\FatLib\FatFile.cpp">
-      <Filter>Libraries\SdFat\FatLib</Filter>
+      <Filter>Libraries\SD\FatLib</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SdFat\FatLib\FatFileLFN.cpp">
-      <Filter>Libraries\SdFat\FatLib</Filter>
+      <Filter>Libraries\SD\FatLib</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SdFat\FatLib\FatFilePrint.cpp">
-      <Filter>Libraries\SdFat\FatLib</Filter>
+      <Filter>Libraries\SD\FatLib</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SdFat\FatLib\FatFileSFN.cpp">
-      <Filter>Libraries\SdFat\FatLib</Filter>
+      <Filter>Libraries\SD\FatLib</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SdFat\FatLib\FatVolume.cpp">
-      <Filter>Libraries\SdFat\FatLib</Filter>
+      <Filter>Libraries\SD\FatLib</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SdFat\FatLib\FmtNumber.cpp">
-      <Filter>Libraries\SdFat\FatLib</Filter>
+      <Filter>Libraries\SD\FatLib</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SdFat\FatLib\fstream.cpp">
-      <Filter>Libraries\SdFat\FatLib</Filter>
+      <Filter>Libraries\SD\FatLib</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SdFat\FatLib\istream.cpp">
-      <Filter>Libraries\SdFat\FatLib</Filter>
+      <Filter>Libraries\SD\FatLib</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SdFat\FatLib\ostream.cpp">
-      <Filter>Libraries\SdFat\FatLib</Filter>
+      <Filter>Libraries\SD\FatLib</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SdFat\FatLib\StdioStream.cpp">
-      <Filter>Libraries\SdFat\FatLib</Filter>
+      <Filter>Libraries\SD\FatLib</Filter>
     </ClCompile>
-    <ClCompile Include="Libraries\SdFat\SdCard\SdioCardEX.cpp">
-      <Filter>Libraries\SdFat\SdCard</Filter>
+    <ClCompile Include="Libraries\SdFat\SdSpiCard\SdSpiCard.cpp">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
     </ClCompile>
-    <ClCompile Include="Libraries\SdFat\SdCard\SdioTeensy.cpp">
-      <Filter>Libraries\SdFat\SdCard</Filter>
+    <ClCompile Include="Libraries\SdFat\SdSpiCard\SdSpiESP8266.cpp">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
     </ClCompile>
-    <ClCompile Include="Libraries\SdFat\SdCard\SdSpiCard.cpp">
-      <Filter>Libraries\SdFat\SdCard</Filter>
+    <ClCompile Include="Libraries\SdFat\SdSpiCard\SdSpiParticle.cpp">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
     </ClCompile>
-    <ClCompile Include="Libraries\SdFat\SdCard\SdSpiCardEX.cpp">
-      <Filter>Libraries\SdFat\SdCard</Filter>
+    <ClCompile Include="Libraries\SdFat\SdSpiCard\SdSpiSAM3X.cpp">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
     </ClCompile>
-    <ClCompile Include="Libraries\SdFat\SpiDriver\SdSpiESP8266.cpp">
-      <Filter>Libraries\SdFat\SpiDriver</Filter>
+    <ClCompile Include="Libraries\SdFat\SdSpiCard\SdSpiSTM32F1.cpp">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
     </ClCompile>
-    <ClCompile Include="Libraries\SdFat\SpiDriver\SdSpiSAM3X.cpp">
-      <Filter>Libraries\SdFat\SpiDriver</Filter>
-    </ClCompile>
-    <ClCompile Include="Libraries\SdFat\SpiDriver\SdSpiSTM32F1.cpp">
-      <Filter>Libraries\SdFat\SpiDriver</Filter>
-    </ClCompile>
-    <ClCompile Include="Libraries\SdFat\SpiDriver\SdSpiTeensy3.cpp">
-      <Filter>Libraries\SdFat\SpiDriver</Filter>
+    <ClCompile Include="Libraries\SdFat\SdSpiCard\SdSpiTeensy3.cpp">
+      <Filter>Libraries\SD\SdSpiCard</Filter>
     </ClCompile>
     <ClCompile Include="Libraries\SPI\SPI.cpp">
       <Filter>Libraries\SPI</Filter>
@@ -424,6 +397,24 @@
     </ClCompile>
     <ClCompile Include="Libraries\Time\Time.cpp">
       <Filter>Libraries\Time</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\I2C\i2c_t3.cpp">
+      <Filter>Libraries\I2C</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\EEPROM\EEPROM.cpp">
+      <Filter>Libraries\EEPROM</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\Bounce\Bounce.cpp">
+      <Filter>Libraries\Debouncer</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\ADC\ADC.cpp">
+      <Filter>Libraries\ADC</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\ADC\ADC_Module.cpp">
+      <Filter>Libraries\ADC</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\Metro\Metro.cpp">
+      <Filter>Libraries\Timer</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

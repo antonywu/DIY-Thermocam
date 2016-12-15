@@ -14,9 +14,8 @@
 */
 
 /* Current firmware version */
-
-#define Version "Firmware 2.31 from 11.12.2016"
-#define fwVersion 231
+#define Version "Firmware 2.32 from 15.12.2016"
+#define fwVersion 232
 
 /* External Libraries */
 
@@ -72,12 +71,10 @@ void setup()
 
 	//Go to the live Mode
 	liveMode();
-	
 }
 
 /* Loop not used */
 
 void loop()
 {
-	
 }

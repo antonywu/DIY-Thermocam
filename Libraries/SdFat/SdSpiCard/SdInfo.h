@@ -1,5 +1,5 @@
-/* Arduino SdCard Library
- * Copyright (C) 2016 by William Greiman
+/* Arduino SdSpiCard Library
+ * Copyright (C) 2012 by William Greiman
  *
  * This file is part of the Arduino SdSpiCard Library
  *
@@ -26,235 +26,164 @@
 // Part 1
 // Physical Layer
 // Simplified Specification
-// Version 5.00
-// Aug 10, 2016
+// Version 3.01
+// May 18, 2010
 //
-// https://www.sdcard.org/downloads/pls/
+// http://www.sdcard.org/developers/tech/sdcard/pls/simplified_specs
 //------------------------------------------------------------------------------
 // SD card errors
-// See the SD Specification for command info.
-typedef enum {
-  SD_CARD_ERROR_NONE = 0,
-
-  // Basic commands and switch command.
-  SD_CARD_ERROR_CMD0 = 0X20,
-  SD_CARD_ERROR_CMD2,
-  SD_CARD_ERROR_CMD3,
-  SD_CARD_ERROR_CMD6,
-  SD_CARD_ERROR_CMD7,
-  SD_CARD_ERROR_CMD8,
-  SD_CARD_ERROR_CMD9,
-  SD_CARD_ERROR_CMD10,
-  SD_CARD_ERROR_CMD12,
-  SD_CARD_ERROR_CMD13,
-
-  // Read, write, erase, and extension commands.
-  SD_CARD_ERROR_CMD17 = 0X30,
-  SD_CARD_ERROR_CMD18,
-  SD_CARD_ERROR_CMD24,
-  SD_CARD_ERROR_CMD25,
-  SD_CARD_ERROR_CMD32,
-  SD_CARD_ERROR_CMD33,
-  SD_CARD_ERROR_CMD38,
-  SD_CARD_ERROR_CMD58,
-  SD_CARD_ERROR_CMD59,
-
-  // Application specific commands.
-  SD_CARD_ERROR_ACMD6 = 0X40,
-  SD_CARD_ERROR_ACMD13,
-  SD_CARD_ERROR_ACMD23,
-  SD_CARD_ERROR_ACMD41,
-
-  // Read/write errors
-  SD_CARD_ERROR_READ = 0X50,
-  SD_CARD_ERROR_READ_FIFO,
-  SD_CARD_ERROR_READ_REG,
-  SD_CARD_ERROR_READ_START,
-  SD_CARD_ERROR_READ_TIMEOUT,
-  SD_CARD_ERROR_STOP_TRAN,
-  SD_CARD_ERROR_WRITE,
-  SD_CARD_ERROR_WRITE_FIFO,
-  SD_CARD_ERROR_WRITE_START,
-  SD_CARD_ERROR_WRITE_TIMEOUT,
-
-    // Misc errors.
-  SD_CARD_ERROR_DMA = 0X60,
-  SD_CARD_ERROR_ERASE,
-  SD_CARD_ERROR_ERASE_SINGLE_BLOCK,
-  SD_CARD_ERROR_ERASE_TIMEOUT,
-  SD_CARD_ERROR_INIT_NOT_CALLED,
-  SD_CARD_ERROR_FUNCTION_NOT_SUPPORTED
-} sd_error_code_t;
+/** timeout error for command CMD0 (initialize card in SPI mode) */
+uint8_t const SD_CARD_ERROR_CMD0 = 0X1;
+/** CMD8 was not accepted - not a valid SD card*/
+uint8_t const SD_CARD_ERROR_CMD8 = 0X2;
+/** card returned an error response for CMD12 (stop multiblock read) */
+uint8_t const SD_CARD_ERROR_CMD12 = 0X3;
+/** card returned an error response for CMD17 (read block) */
+uint8_t const SD_CARD_ERROR_CMD17 = 0X4;
+/** card returned an error response for CMD18 (read multiple block) */
+uint8_t const SD_CARD_ERROR_CMD18 = 0X5;
+/** card returned an error response for CMD24 (write block) */
+uint8_t const SD_CARD_ERROR_CMD24 = 0X6;
+/**  WRITE_MULTIPLE_BLOCKS command failed */
+uint8_t const SD_CARD_ERROR_CMD25 = 0X7;
+/** card returned an error response for CMD58 (read OCR) */
+uint8_t const SD_CARD_ERROR_CMD58 = 0X8;
+/** SET_WR_BLK_ERASE_COUNT failed */
+uint8_t const SD_CARD_ERROR_ACMD23 = 0X9;
+/** ACMD41 initialization process timeout */
+uint8_t const SD_CARD_ERROR_ACMD41 = 0XA;
+/** card returned a bad CSR version field */
+uint8_t const SD_CARD_ERROR_BAD_CSD = 0XB;
+/** erase block group command failed */
+uint8_t const SD_CARD_ERROR_ERASE = 0XC;
+/** card not capable of single block erase */
+uint8_t const SD_CARD_ERROR_ERASE_SINGLE_BLOCK = 0XD;
+/** Erase sequence timed out */
+uint8_t const SD_CARD_ERROR_ERASE_TIMEOUT = 0XE;
+/** card returned an error token instead of read data */
+uint8_t const SD_CARD_ERROR_READ = 0XF;
+/** read CID or CSD failed */
+uint8_t const SD_CARD_ERROR_READ_REG = 0X10;
+/** timeout while waiting for start of read data */
+uint8_t const SD_CARD_ERROR_READ_TIMEOUT = 0X11;
+/** card did not accept STOP_TRAN_TOKEN */
+uint8_t const SD_CARD_ERROR_STOP_TRAN = 0X12;
+/** card returned an error token as a response to a write operation */
+uint8_t const SD_CARD_ERROR_WRITE = 0X13;
+/** attempt to write protected block zero */
+uint8_t const SD_CARD_ERROR_WRITE_BLOCK_ZERO = 0X14;  // REMOVE - not used
+/** card did not go ready for a multiple block write */
+uint8_t const SD_CARD_ERROR_WRITE_MULTIPLE = 0X15;  // Not used
+/** card returned an error to a CMD13 status check after a write */
+uint8_t const SD_CARD_ERROR_WRITE_PROGRAMMING = 0X16;
+/** timeout occurred during write programming */
+uint8_t const SD_CARD_ERROR_WRITE_TIMEOUT = 0X17;
+/** incorrect rate selected */
+uint8_t const SD_CARD_ERROR_SCK_RATE = 0X18;
+/** init() not called */
+uint8_t const SD_CARD_ERROR_INIT_NOT_CALLED = 0X19;
+/** card returned an error for CMD59 (CRC_ON_OFF) */
+uint8_t const SD_CARD_ERROR_CMD59 = 0X1A;
+/** invalid read CRC */
+uint8_t const SD_CARD_ERROR_READ_CRC = 0X1B;
+/** SPI DMA error */
+uint8_t const SD_CARD_ERROR_SPI_DMA = 0X1C;
+/** CMD6 not accepted */
+uint8_t const SD_CARD_ERROR_CMD6 = 0X1D;
 //------------------------------------------------------------------------------
 // card types
 /** Standard capacity V1 SD card */
-const uint8_t SD_CARD_TYPE_SD1  = 1;
+uint8_t const SD_CARD_TYPE_SD1  = 1;
 /** Standard capacity V2 SD card */
-const uint8_t SD_CARD_TYPE_SD2  = 2;
+uint8_t const SD_CARD_TYPE_SD2  = 2;
 /** High Capacity SD card */
-const uint8_t SD_CARD_TYPE_SDHC = 3;
+uint8_t const SD_CARD_TYPE_SDHC = 3;
 //------------------------------------------------------------------------------
-#define SD_SCK_HZ(maxSpeed) SPISettings(maxSpeed, MSBFIRST, SPI_MODE0)
-#define SD_SCK_MHZ(maxMhz) SPISettings(1000000UL*maxMhz, MSBFIRST, SPI_MODE0)
 // SPI divisor constants
 /** Set SCK to max rate of F_CPU/2. */
-#define SPI_FULL_SPEED SD_SCK_MHZ(50)
+uint8_t const SPI_FULL_SPEED = 2;
 /** Set SCK rate to F_CPU/3 for Due */
-#define SPI_DIV3_SPEED SD_SCK_HZ(F_CPU/3)
+uint8_t const SPI_DIV3_SPEED = 3;
 /** Set SCK rate to F_CPU/4. */
-#define SPI_HALF_SPEED SD_SCK_HZ(F_CPU/4)
+uint8_t const SPI_HALF_SPEED = 4;
 /** Set SCK rate to F_CPU/6 for Due */
-#define SPI_DIV6_SPEED SD_SCK_HZ(F_CPU/6)
+uint8_t const SPI_DIV6_SPEED = 6;
 /** Set SCK rate to F_CPU/8. */
-#define SPI_QUARTER_SPEED SD_SCK_HZ(F_CPU/8)
+uint8_t const SPI_QUARTER_SPEED = 8;
 /** Set SCK rate to F_CPU/16. */
-#define SPI_EIGHTH_SPEED SD_SCK_HZ(F_CPU/16)
+uint8_t const SPI_EIGHTH_SPEED = 16;
 /** Set SCK rate to F_CPU/32. */
-#define SPI_SIXTEENTH_SPEED SD_SCK_HZ(F_CPU/32)
+uint8_t const SPI_SIXTEENTH_SPEED = 32;
 //------------------------------------------------------------------------------
 // SD operation timeouts
 /** init timeout ms */
-const uint16_t SD_INIT_TIMEOUT = 2000;
+unsigned const SD_INIT_TIMEOUT = 2000;
 /** erase timeout ms */
-const uint16_t SD_ERASE_TIMEOUT = 10000;
+unsigned const SD_ERASE_TIMEOUT = 10000;
 /** read timeout ms */
-const uint16_t SD_READ_TIMEOUT = 300;
+unsigned const SD_READ_TIMEOUT = 300;
 /** write time out ms */
-const uint16_t SD_WRITE_TIMEOUT = 600;
+unsigned const SD_WRITE_TIMEOUT = 600;
 //------------------------------------------------------------------------------
 // SD card commands
 /** GO_IDLE_STATE - init card in spi mode if CS low */
-const uint8_t CMD0 = 0X00;
-/** ALL_SEND_CID - Asks any card to send the CID. */
-const uint8_t CMD2 = 0X02;
-/** SEND_RELATIVE_ADDR - Ask the card to publish a new RCA. */
-const uint8_t CMD3 = 0X03;
+uint8_t const CMD0 = 0X00;
 /** SWITCH_FUNC - Switch Function Command */
-const uint8_t CMD6 = 0X06;
-/** SELECT/DESELECT_CARD - toggles between the stand-by and transfer states. */
-const uint8_t CMD7 = 0X07;
+uint8_t const CMD6 = 0X06;
 /** SEND_IF_COND - verify SD Memory Card interface operating condition.*/
-const uint8_t CMD8 = 0X08;
+uint8_t const CMD8 = 0X08;
 /** SEND_CSD - read the Card Specific Data (CSD register) */
-const uint8_t CMD9 = 0X09;
+uint8_t const CMD9 = 0X09;
 /** SEND_CID - read the card identification information (CID register) */
-const uint8_t CMD10 = 0X0A;
+uint8_t const CMD10 = 0X0A;
 /** STOP_TRANSMISSION - end multiple block read sequence */
-const uint8_t CMD12 = 0X0C;
+uint8_t const CMD12 = 0X0C;
 /** SEND_STATUS - read the card status register */
-const uint8_t CMD13 = 0X0D;
+uint8_t const CMD13 = 0X0D;
 /** READ_SINGLE_BLOCK - read a single data block from the card */
-const uint8_t CMD17 = 0X11;
+uint8_t const CMD17 = 0X11;
 /** READ_MULTIPLE_BLOCK - read a multiple data blocks from the card */
-const uint8_t CMD18 = 0X12;
+uint8_t const CMD18 = 0X12;
 /** WRITE_BLOCK - write a single data block to the card */
-const uint8_t CMD24 = 0X18;
+uint8_t const CMD24 = 0X18;
 /** WRITE_MULTIPLE_BLOCK - write blocks of data until a STOP_TRANSMISSION */
-const uint8_t CMD25 = 0X19;
+uint8_t const CMD25 = 0X19;
 /** ERASE_WR_BLK_START - sets the address of the first block to be erased */
-const uint8_t CMD32 = 0X20;
+uint8_t const CMD32 = 0X20;
 /** ERASE_WR_BLK_END - sets the address of the last block of the continuous
     range to be erased*/
-const uint8_t CMD33 = 0X21;
+uint8_t const CMD33 = 0X21;
 /** ERASE - erase all previously selected blocks */
-const uint8_t CMD38 = 0X26;
+uint8_t const CMD38 = 0X26;
 /** APP_CMD - escape for application specific command */
-const uint8_t CMD55 = 0X37;
+uint8_t const CMD55 = 0X37;
 /** READ_OCR - read the OCR register of a card */
-const uint8_t CMD58 = 0X3A;
+uint8_t const CMD58 = 0X3A;
 /** CRC_ON_OFF - enable or disable CRC checking */
-const uint8_t CMD59 = 0X3B;
-/** SET_BUS_WIDTH - Defines the data bus width for data transfer. */
-const uint8_t ACMD6 = 0X06;
-/** SD_STATUS - Send the SD Status. */
-const uint8_t ACMD13 = 0X0D;
+uint8_t const CMD59 = 0X3B;
 /** SET_WR_BLK_ERASE_COUNT - Set the number of write blocks to be
      pre-erased before writing */
-const uint8_t ACMD23 = 0X17;
+uint8_t const ACMD23 = 0X17;
 /** SD_SEND_OP_COMD - Sends host capacity support information and
     activates the card's initialization process */
-const uint8_t ACMD41 = 0X29;
-//==============================================================================
-// CARD_STATUS
-/** The command's argument was out of the allowed range for this card. */
-const uint32_t CARD_STATUS_OUT_OF_RANGE = 1UL << 31;
-/** A misaligned address which did not match the block length. */
-const uint32_t CARD_STATUS_ADDRESS_ERROR = 1UL << 30;
-/** The transferred block length is not allowed for this card. */
-const uint32_t CARD_STATUS_BLOCK_LEN_ERROR = 1UL << 29;
-/** An error in the sequence of erase commands occurred. */
-const uint32_t CARD_STATUS_ERASE_SEQ_ERROR = 1UL <<28;
-/** An invalid selection of write-blocks for erase occurred. */
-const uint32_t CARD_STATUS_ERASE_PARAM = 1UL << 27;
-/** Set when the host attempts to write to a protected block. */
-const uint32_t CARD_STATUS_WP_VIOLATION = 1UL << 26;
-/** When set, signals that the card is locked by the host. */
-const uint32_t CARD_STATUS_CARD_IS_LOCKED = 1UL << 25;
-/** Set when a sequence or password error has been detected. */
-const uint32_t CARD_STATUS_LOCK_UNLOCK_FAILED = 1UL << 24;
-/** The CRC check of the previous command failed. */
-const uint32_t CARD_STATUS_COM_CRC_ERROR = 1UL << 23;
-/** Command not legal for the card state. */
-const uint32_t CARD_STATUS_ILLEGAL_COMMAND = 1UL << 22;
-/** Card internal ECC was applied but failed to correct the data. */
-const uint32_t CARD_STATUS_CARD_ECC_FAILED = 1UL << 21;
-/** Internal card controller error */
-const uint32_t CARD_STATUS_CC_ERROR = 1UL << 20;
-/** A general or an unknown error occurred during the operation. */
-const uint32_t CARD_STATUS_ERROR = 1UL << 19;
-// bits 19, 18, and 17 reserved.
-/** Permanent WP set or attempt to change read only values of  CSD. */
-const uint32_t CARD_STATUS_CSD_OVERWRITE = 1UL <<16;
-/** partial address space was erased due to write protect. */
-const uint32_t CARD_STATUS_WP_ERASE_SKIP = 1UL << 15;
-/** The command has been executed without using the internal ECC. */
-const uint32_t CARD_STATUS_CARD_ECC_DISABLED = 1UL << 14;
-/** out of erase sequence command was received. */
-const uint32_t CARD_STATUS_ERASE_RESET = 1UL << 13;
-/** The state of the card when receiving the command.
- * 0 = idle
- * 1 = ready
- * 2 = ident
- * 3 = stby
- * 4 = tran
- * 5 = data
- * 6 = rcv
- * 7 = prg
- * 8 = dis
- * 9-14 = reserved
- * 15 = reserved for I/O mode
- */
-const uint32_t CARD_STATUS_CURRENT_STATE = 0XF << 9;
-/** Shift for current state. */
-const uint32_t CARD_STATUS_CURRENT_STATE_SHIFT = 9;
-/** Corresponds to buffer empty signaling on the bus. */
-const uint32_t CARD_STATUS_READY_FOR_DATA = 1UL << 8;
-// bit 7 reserved.
-/** Extension Functions may set this bit to get host to deal with events. */
-const uint32_t CARD_STATUS_FX_EVENT = 1UL << 6;
-/** The card will expect ACMD, or the command has been interpreted as ACMD */
-const uint32_t CARD_STATUS_APP_CMD = 1UL << 5;
-// bit 4 reserved.
-/** Error in the sequence of the authentication process. */
-const uint32_t CARD_STATUS_AKE_SEQ_ERROR = 1UL << 3;
-// bits 2,1, and 0 reserved for manufacturer test mode.
+uint8_t const ACMD41 = 0X29;
 //==============================================================================
 /** status for card in the ready state */
-const uint8_t R1_READY_STATE = 0X00;
+uint8_t const R1_READY_STATE = 0X00;
 /** status for card in the idle state */
-const uint8_t R1_IDLE_STATE = 0X01;
+uint8_t const R1_IDLE_STATE = 0X01;
 /** status bit for illegal command */
-const uint8_t R1_ILLEGAL_COMMAND = 0X04;
+uint8_t const R1_ILLEGAL_COMMAND = 0X04;
 /** start data token for read or write single block*/
-const uint8_t DATA_START_BLOCK = 0XFE;
+uint8_t const DATA_START_BLOCK = 0XFE;
 /** stop token for write multiple blocks*/
-const uint8_t STOP_TRAN_TOKEN = 0XFD;
+uint8_t const STOP_TRAN_TOKEN = 0XFD;
 /** start data token for write multiple blocks*/
-const uint8_t WRITE_MULTIPLE_TOKEN = 0XFC;
+uint8_t const WRITE_MULTIPLE_TOKEN = 0XFC;
 /** mask for data response tokens after a write block operation */
-const uint8_t DATA_RES_MASK = 0X1F;
+uint8_t const DATA_RES_MASK = 0X1F;
 /** write data accepted token */
-const uint8_t DATA_RES_ACCEPTED = 0X05;
+uint8_t const DATA_RES_ACCEPTED = 0X05;
 //==============================================================================
 /**
  * \class CID
@@ -294,7 +223,6 @@ typedef struct CID {
   /** CRC7 checksum */
   unsigned char crc : 7;
 } __attribute__((packed)) cid_t;
-
 //==============================================================================
 /**
  * \class CSDV1
@@ -454,21 +382,4 @@ union csd_t {
   csd1_t v1;
   csd2_t v2;
 };
-//-----------------------------------------------------------------------------
-inline uint32_t sdCardCapacity(csd_t* csd) {
-  if (csd->v1.csd_ver == 0) {
-    uint8_t read_bl_len = csd->v1.read_bl_len;
-    uint16_t c_size = (csd->v1.c_size_high << 10)
-                      | (csd->v1.c_size_mid << 2) | csd->v1.c_size_low;
-    uint8_t c_size_mult = (csd->v1.c_size_mult_high << 1)
-                          | csd->v1.c_size_mult_low;
-    return (uint32_t)(c_size + 1) << (c_size_mult + read_bl_len - 7);
-  } else if (csd->v2.csd_ver == 1) {
-    uint32_t c_size = 0X10000L * csd->v2.c_size_high + 0X100L
-                      * (uint32_t)csd->v2.c_size_mid + csd->v2.c_size_low;
-    return (c_size + 1) << 10;
-  } else {
-    return 0;
-  }
-}
 #endif  // SdInfo_h

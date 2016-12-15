@@ -26,13 +26,14 @@ uint8_t  camerabuff[101];
 uint8_t  bufferLen = 0;
 uint16_t frameptr = 0;
 
-const uint8_t exifHeader_vc0706[] =
-{ 0xFF, 0xE1, 0x00, 0x62, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x4D, 0x4D, 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08, 
-  0x00, 0x05, 0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x00, 0x01, 0x1A, 0x00, 0x05, 
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x4A, 0x01, 0x1B, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 
-  0x00, 0x52, 0x01, 0x28, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x00, 0x02, 0x13, 0x00, 0x03, 
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 
-  0x00, 0x01, 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0x00, 0x01 };
+//EXIF header for horizontal mirror in ThermocamV4
+const uint8_t exifHeader_mirror[] =
+{ 0xFF, 0xE1, 0x00, 0x62, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x4D, 0x4D, 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08,
+0x00, 0x05, 0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x00, 0x01, 0x1A, 0x00, 0x05,
+0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x4A, 0x01, 0x1B, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+0x00, 0x52, 0x01, 0x28, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x00, 0x02, 0x13, 0x00, 0x03,
+0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x00, 0x00,
+0x00, 0x01, 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0x00, 0x01 };
 
 /* Methods */
 
@@ -200,24 +201,35 @@ boolean vc0706_readPicture(uint8_t n) {
 }
 
 /* Transfer the JPEG bytestream*/
-void vc0706_transfer(uint8_t* jpegData, uint16_t jpegLen, byte mode)
+void vc0706_transfer(uint8_t* jpegData, uint16_t jpegLen, byte mode, char* dirname)
 {
 	//Count variable
 	uint16_t counter = 0;
+
 	//Create the buffer
 	uint8_t* buffer = (uint8_t*)malloc(128 + 5);
-	//For saving, start alternative clock line
+
+	//For saving to SD card
 	if (mode == camera_save)
+	{
+		//Start alternative clock line
 		startAltClockline();
+		//Create JPEG file
+		createJPEGFile(dirname);
+	}
+
 	//Transfer data
 	while (jpegLen > 0) {
 		//Calculate the bytes left to read
 		uint8_t bytesToRead = min(jpegLen, 128);
+
 		//Send the read command
 		if (!vc0706_readPicture(bytesToRead))
 			continue;
+
 		//Transfer a package
 		vc0706_transPackage(bytesToRead, buffer);
+
 		//For streaming, add it to the jpeg data buffer
 		if (mode == camera_stream)
 		{
@@ -226,42 +238,66 @@ void vc0706_transfer(uint8_t* jpegData, uint16_t jpegLen, byte mode)
 				counter++;
 			}
 		}
-		//For serial transfer, write it to the port
+
+		//For serial transfer
 		if (mode == camera_serial)
 		{
-			//For first package on ThermocamV4, include EXIF info
-			if ((counter == 0) && (mlx90614Version == mlx90614Version_old))
+			//Rotation on DIY-Thermocam V1 or V2
+			if ((counter == 0) && rotationEnabled && (mlx90614Version == mlx90614Version_new))
 			{
 				Serial.write(buffer, 40);
-				Serial.write(exifHeader_vc0706, sizeof(exifHeader_vc0706));
+				Serial.write(exifHeader_rotated, 100);
 				Serial.write(&buffer[40], (bytesToRead - 40));
 				counter++;
 			}
+			//Mirror on ThermocamV4
+			else if ((counter == 0) && (mlx90614Version == mlx90614Version_old))
+			{
+				Serial.write(buffer, 40);
+				Serial.write(exifHeader_mirror, sizeof(exifHeader_mirror));
+				Serial.write(&buffer[40], (bytesToRead - 40));
+				counter++;
+			}
+			//No EXIF
 			else
 				Serial.write(buffer, bytesToRead);
 		}
+
 		//For saving to SD card
 		if (mode == camera_save)
 		{
-			//For first package on ThermocamV4, include EXIF info
-			if ((counter == 0) && (mlx90614Version == mlx90614Version_old))
+			//Rotation on DIY-Thermocam V1 or V2
+			if ((counter == 0) && rotationEnabled && (mlx90614Version == mlx90614Version_new))
 			{
 				sdFile.write(buffer, 40);
-				sdFile.write(exifHeader_vc0706, sizeof(exifHeader_vc0706));
+				sdFile.write(exifHeader_rotated, 100);
 				sdFile.write(&buffer[40], (bytesToRead - 40));
 				counter++;
 			}
+			//Mirror on ThermocamV4
+			else if ((counter == 0) && (mlx90614Version == mlx90614Version_old))
+			{
+				sdFile.write(buffer, 40);
+				sdFile.write(exifHeader_mirror, sizeof(exifHeader_mirror));
+				sdFile.write(&buffer[40], (bytesToRead - 40));
+				counter++;
+			}
+			//No EXIF
 			else
 				sdFile.write(buffer, bytesToRead);
 		}
+
 		//Substract transfered bytes from total
 		jpegLen -= bytesToRead;
 	}
+
 	//Free the buffer
 	free(buffer);
+
 	//End transmission
 	vc0706_end();
-	//For saving
+
+	//For saving to SD, close file
 	if (mode == camera_save)
 	{
 		//Close the file

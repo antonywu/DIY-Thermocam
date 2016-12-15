@@ -27,7 +27,8 @@
  */
 #ifndef DigitalPin_h
 #define DigitalPin_h
-#if defined(__AVR__) || defined(DOXYGEN)
+#include "SystemInclude.h"
+#if defined(__AVR__)  || defined(DOXYGEN)
 #include <avr/io.h>
 /** GpioPinMap type */
 struct GpioPinMap_t {
@@ -266,18 +267,14 @@ inline void fastDigitalWrite(uint8_t pin, bool value) {
   digitalWrite(pin, value);
 }
 //------------------------------------------------------------------------------
-inline bool fastDigitalRead(uint8_t pin) {
-  return digitalRead(pin);
-}
+inline bool fastDigitalRead(uint8_t pin) {return digitalRead(pin);}
 #endif  // CORE_TEENSY
 //------------------------------------------------------------------------------
 inline void fastDigitalToggle(uint8_t pin) {
   fastDigitalWrite(pin, !fastDigitalRead(pin));
 }
 //------------------------------------------------------------------------------
-inline void fastPinMode(pin, mode) {
-  pinMode(pin, mode);
-}
+#define fastPinMode(pin, mode) pinMode(pin, mode)
 #endif  // __AVR__
 //------------------------------------------------------------------------------
 /** set pin configuration

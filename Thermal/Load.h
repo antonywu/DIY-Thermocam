@@ -81,7 +81,7 @@ void clearData() {
 	minutenum = 0;
 	secondnum = 0;
 	imgCount = 0;
-	clearTemperatures();
+	clearTempPoints();
 }
 
 /* Display the image on the screen */
@@ -97,7 +97,7 @@ void displayRawData() {
 
 	//Find min / max position
 	if (minMaxPoints != minMaxPoints_disabled)
-		findMinMaxPositions();
+		refreshMinMax();
 
 	//Teensy 3.6 - Resize to big buffer
 	if (teensyVersion == teensyVersion_new)
@@ -169,7 +169,7 @@ void loadBMPImage(char* filename) {
 		endAltClockline();
 		//Draw it on the screen
 		display_drawBitmap(0, 0, 320, 240, bigBuffer);
-	}	
+	}
 }
 
 /* Checks if the file is an image*/
@@ -199,16 +199,91 @@ bool isImage(char* filename) {
 	return isImg;
 }
 
+/* Read the temperature points from the file, new or old format */
+void readTempPoints()
+{
+	uint16_t tempArray[192];
+	bool oldFormat = false;
+
+	//Read the array
+	for (byte i = 0; i < 192; i++)
+	{
+		//Read from SD file
+		tempArray[i] = (sdFile.read() << 8) + sdFile.read();
+
+		//Correct old not_set marker
+		if (tempArray[i] == 65535)
+			tempArray[i] = 0;
+	}
+
+	//Check for old format
+	for (byte i = 1; i < 191; i++)
+	{
+		//Valid value found
+		if (tempArray[i] != 0)
+		{
+			//If the value before and after is zero, it is the old format
+			if ((tempArray[i - 1] == 0) && (tempArray[i + 1] == 0))
+				oldFormat = true;
+		}
+	}
+
+	//Load the old format
+	if (oldFormat)
+	{
+		//Position counter
+		byte pos = 0;
+
+		//Go through the array
+		for (byte i = 0; i < 192; i++)
+		{
+			//Valid value found
+			if (tempArray[i] != 0)
+			{
+				//Calculate x and y position
+				uint16_t xpos = (i % 16) * 10;
+				uint16_t ypos = (i / 16) * 10;
+
+				//Calculate index
+				tempPoints[pos][0] = xpos + (ypos * 160) + 1;
+				//Save value
+				tempPoints[pos][1] = tempArray[i];
+
+				//Raise position
+				pos++;
+				//When maximum number of temp points reached, exit
+				if (pos == 96)
+					return;
+			}
+		}
+	}
+
+	//Load the new format
+	else
+	{
+		//Go through the array
+		for (byte i = 0; i < 96; i++) {
+			//Read index
+			tempPoints[i][0] = tempArray[(i * 2)];
+			//Read value
+			tempPoints[i][1] = tempArray[(i * 2) + 1];
+		}
+	}
+}
+
 /* Loads raw data from the internal storage*/
 void loadRawData(char* filename, char* dirname) {
 	byte msb, lsb;
 	uint16_t result;
 	uint32_t fileSize;
+
 	//Switch Clock to Alternative
 	startAltClockline();
+
 	//Go into the video folder if video
 	if (dirname != NULL)
 		sd.chdir(dirname);
+
 	// Open the file for reading
 	sdFile.open(filename, O_READ);
 
@@ -230,6 +305,7 @@ void loadRawData(char* filename, char* dirname) {
 		}
 		leptonVersion = leptonVersion_2_shutter;
 	}
+
 	//For the Lepton3 sensor, read 19200 raw values
 	else if ((fileSize == lepton3_small) || (fileSize == lepton3_big)) {
 		for (int i = 0; i < 19200; i++) {
@@ -283,17 +359,12 @@ void loadRawData(char* filename, char* dirname) {
 		farray[i] = sdFile.read();
 	calSlope = bytesToFloat(farray);
 
-	//Read temperature points
-	clearTemperatures();
-	if ((fileSize == lepton3_big) || (fileSize == lepton2_big)) {
-		//Go through the array
-		for (byte i = 0; i < 96; i++) {
-			//Read index
-			tempPoints[i][0] = (sdFile.read() << 8) + sdFile.read();
-			//Read value
-			tempPoints[i][1] = (sdFile.read() << 8) + sdFile.read();
-		}
-	}
+	//Clear temperature points array
+	clearTempPoints();
+
+	//Read temperatures if they are included
+	if ((fileSize == lepton3_big) || (fileSize == lepton2_big))
+		readTempPoints();
 
 	//Close data file
 	sdFile.close();

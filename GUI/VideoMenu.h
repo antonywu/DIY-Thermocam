@@ -199,13 +199,14 @@ void videoCaptureInterval(int16_t* remainingTime, int* framesCaptured, char* dir
 			sprintf(buffer, "Saving thermal + visual now!");
 			display_setFont(smallFont);
 			display_print(buffer, CENTER, 210);
+
 			//Create filename to save data
 			char filename[] = "00000.JPG";
 			frameFilename(filename, *framesCaptured);
-			//Create file
-			createJPGFile(filename, dirname);
+
 			//Save visual image
-			camera_get(camera_save);
+			camera_get(camera_save, dirname);
+
 			//Reset counter
 			int16_t elapsed = (millis() - measure) / 1000;
 			*remainingTime = videoInterval - elapsed;
@@ -334,29 +335,40 @@ void videoCapture() {
 }
 
 /* Video mode, choose intervall or normal */
-bool videoMode() {
+void videoMode() {
+
 	//Show message that video is only possible in thermal mode
 	if (displayMode != displayMode_thermal) {
-		showTransMessage((char*) "Only in thermal!");
-		//Disable mode
+		//Show message
+		showFullMessage((char*) "Works only in thermal mode!");
+		delay(1000);
+
+		//Disable mode and return
 		videoSave = videoSave_disabled;
-		imgSave = imgSave_disabled;
-		return false;
+		return;
 	}
 
 	//ThermocamV4 or DIY-Thermocam V2 - check SD card
 	if (!checkSDCard()) {
-		showTransMessage((char*) "Waiting for card..");
+		//Show message
+		showFullMessage((char*) "Waiting for card..");
+
+		//Wait for SD card
 		while (!checkSDCard());
+
+		//Redraw the last screen content
+		displayBuffer();
 	}
 
 	//Check if there is at least 1MB of space left
 	if (getSDSpace() < 1000) {
-		showTransMessage((char*) "SD card full!");
-		//Disable mode
+		//Show message
+		showFullMessage((char*) "The SD card is full!");
+		delay(1000);
+
+		//Disable mode and return
 		videoSave = videoSave_disabled;
-		imgSave = imgSave_disabled;
-		return false;
+		return;
 	}
 
 	//Border
@@ -365,7 +377,7 @@ bool videoMode() {
 redraw:
 	//Title & Background
 	mainMenuBackground();
-	mainMenuTitle((char*)"Video mode");
+	mainMenuTitle((char*)"Video Mode");
 	//Draw the buttons
 	buttons_deleteAllButtons();
 	buttons_setTextFont(bigFont);
@@ -379,6 +391,7 @@ redraw:
 
 		//If touch pressed
 		if (touch_touched() == true) {
+			//Check which button has been pressed
 			int pressedButton = buttons_checkButtons(true);
 
 			//Normal
@@ -403,11 +416,11 @@ redraw:
 
 			//Back
 			if (pressedButton == 2) {
-				//Disable mode
+
+				//Disable mode and return
 				videoSave = videoSave_disabled;
-				return false;
+				return;
 			}
 		}
 	}
-	return true;
 }

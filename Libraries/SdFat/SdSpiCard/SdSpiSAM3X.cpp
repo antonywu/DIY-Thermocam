@@ -1,7 +1,7 @@
-/* Arduino SdSpiAltDriver Library
+/* Arduino SdSpi Library
  * Copyright (C) 2013 by William Greiman
  *
- * This file is part of the Arduino SdSpiAltDriver Library
+ * This file is part of the Arduino SdSpi Library
  *
  * This Library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,10 +14,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with the Arduino SdSpiAltDriver Library.  If not, see
+ * along with the Arduino SdSpi Library.  If not, see
  * <http://www.gnu.org/licenses/>.
  */
-#include "SdSpiDriver.h"
+#include "SdSpi.h"
 #if defined(__SAM3X8E__) || defined(__SAM3X8H__)
 /** Use SAM3X DMAC if nonzero */
 #define USE_SAM3X_DMAC 1
@@ -57,11 +57,25 @@ static bool dmac_channel_transfer_done(uint32_t ul_num) {
   return (DMAC->DMAC_CHSR & (DMAC_CHSR_ENA0 << ul_num)) ? false : true;
 }
 //------------------------------------------------------------------------------
-void SdSpiAltDriver::begin(uint8_t csPin) {
-  m_csPin = csPin;
-  pinMode(m_csPin, OUTPUT);
-  digitalWrite(m_csPin, HIGH);
-SPI.begin();
+void SdSpi::begin(uint8_t chipSelectPin) {
+  pinMode(chipSelectPin, OUTPUT);
+  digitalWrite(chipSelectPin, HIGH);
+  PIO_Configure(
+    g_APinDescription[PIN_SPI_MOSI].pPort,
+    g_APinDescription[PIN_SPI_MOSI].ulPinType,
+    g_APinDescription[PIN_SPI_MOSI].ulPin,
+    g_APinDescription[PIN_SPI_MOSI].ulPinConfiguration);
+  PIO_Configure(
+    g_APinDescription[PIN_SPI_MISO].pPort,
+    g_APinDescription[PIN_SPI_MISO].ulPinType,
+    g_APinDescription[PIN_SPI_MISO].ulPin,
+    g_APinDescription[PIN_SPI_MISO].ulPinConfiguration);
+  PIO_Configure(
+    g_APinDescription[PIN_SPI_SCK].pPort,
+    g_APinDescription[PIN_SPI_SCK].ulPinType,
+    g_APinDescription[PIN_SPI_SCK].ulPin,
+    g_APinDescription[PIN_SPI_SCK].ulPinConfiguration);
+  pmc_enable_periph_clk(ID_SPI0);
 #if USE_SAM3X_DMAC
   pmc_enable_periph_clk(ID_DMAC);
   dmac_disable();
@@ -120,26 +134,28 @@ static void spiDmaTX(const uint8_t* src, uint16_t count) {
 }
 //------------------------------------------------------------------------------
 //  initialize SPI controller
-void SdSpiAltDriver::activate() {
-  SPI.beginTransaction(m_spiSettings);
-
+void SdSpi::beginTransaction(uint8_t sckDivisor) {
+#if ENABLE_SPI_TRANSACTIONS
+  SPI.beginTransaction(SPISettings());
+#endif  // ENABLE_SPI_TRANSACTIONS
+  uint8_t scbr = sckDivisor;
   Spi* pSpi = SPI0;
-  // Save the divisor
-  uint32_t scbr = pSpi->SPI_CSR[SPI_CHIP_SEL] & 0XFF00;
-  // Disable SPI
+  //  disable SPI
   pSpi->SPI_CR = SPI_CR_SPIDIS;
   // reset SPI
   pSpi->SPI_CR = SPI_CR_SWRST;
   // no mode fault detection, set master mode
   pSpi->SPI_MR = SPI_PCS(SPI_CHIP_SEL) | SPI_MR_MODFDIS | SPI_MR_MSTR;
   // mode 0, 8-bit,
-  pSpi->SPI_CSR[SPI_CHIP_SEL] = scbr | SPI_CSR_CSAAT | SPI_CSR_NCPHA;
+  pSpi->SPI_CSR[SPI_CHIP_SEL] = SPI_CSR_SCBR(scbr) | SPI_CSR_NCPHA;
   // enable SPI
   pSpi->SPI_CR |= SPI_CR_SPIEN;
 }
 //------------------------------------------------------------------------------
-void SdSpiAltDriver::deactivate() {
+void SdSpi::endTransaction() {
+#if ENABLE_SPI_TRANSACTIONS
   SPI.endTransaction();
+#endif  // ENABLE_SPI_TRANSACTIONS
 }
 //------------------------------------------------------------------------------
 static inline uint8_t spiTransfer(uint8_t b) {
@@ -152,12 +168,12 @@ static inline uint8_t spiTransfer(uint8_t b) {
 }
 //------------------------------------------------------------------------------
 /** SPI receive a byte */
-uint8_t SdSpiAltDriver::receive() {
+uint8_t SdSpi::receive() {
   return spiTransfer(0XFF);
 }
 //------------------------------------------------------------------------------
 /** SPI receive multiple bytes */
-uint8_t SdSpiAltDriver::receive(uint8_t* buf, size_t n) {
+uint8_t SdSpi::receive(uint8_t* buf, size_t n) {
   Spi* pSpi = SPI0;
   int rtn = 0;
 #if USE_SAM3X_DMAC
@@ -190,11 +206,11 @@ uint8_t SdSpiAltDriver::receive(uint8_t* buf, size_t n) {
 }
 //------------------------------------------------------------------------------
 /** SPI send a byte */
-void SdSpiAltDriver::send(uint8_t b) {
+void SdSpi::send(uint8_t b) {
   spiTransfer(b);
 }
 //------------------------------------------------------------------------------
-void SdSpiAltDriver::send(const uint8_t* buf , size_t n) {
+void SdSpi::send(const uint8_t* buf , size_t n) {
   Spi* pSpi = SPI0;
 #if USE_SAM3X_DMAC
   spiDmaTX(buf, n);

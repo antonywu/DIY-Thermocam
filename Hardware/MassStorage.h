@@ -93,7 +93,7 @@ void massStorage() {
 	//Thermocam V4 or DIY-Thermocam V2 does not support this
 	if ((mlx90614Version == mlx90614Version_old) || (teensyVersion == teensyVersion_new)) {
 		//Display error msg for 1sec
-		showFullMessage((char*) "Your HW does not support this!", true);
+		showFullMessage((char*) "Only works on the DIY-Thermocam V1", true);
 		delay(1000);
 		//Go back
 		return;

@@ -58,9 +58,9 @@
 #define CMD_FRAME_DISPLAY      152
 
 //Types of raw frame responses
-#define FRAME_CAPTURE          180
-#define FRAME_STARTVID         181
-#define FRAME_STOPVID          182
+#define FRAME_CAPTURE_THERMAL  180
+#define FRAME_CAPTURE_VISUAL   181
+#define FRAME_CAPTURE_VIDEO    182
 #define FRAME_NORMAL           183
 
 /* Variables */
@@ -138,7 +138,7 @@ void sendFramebuffer()
 	//Teensy 3.6
 	else
 	{
-		for (int i = 0; i < 76800; i++)
+		for (uint32_t i = 0; i < 76800; i++)
 		{
 			Serial.write((bigBuffer[i] & 0xFF00) >> 8);
 			Serial.write(bigBuffer[i] & 0x00FF);
@@ -510,6 +510,11 @@ void setTempPoints()
 	for (byte i = 0; i < 96; i++) {
 		//Read index
 		tempPoints[i][0] = (Serial.read() << 8) + Serial.read();
+		
+		//Correct old not_set marker
+		if (tempPoints[i][0] == 65535)
+			tempPoints[i][0] = 0;
+
 		//Read value
 		tempPoints[i][1] = (Serial.read() << 8) + Serial.read();
 	}
@@ -562,7 +567,7 @@ void sendDisplayFrame() {
 	if (sendCmd == FRAME_NORMAL) {
 		//Find min / max position
 		if (minMaxPoints != minMaxPoints_disabled)
-			findMinMaxPositions();
+			refreshMinMax();
 
 		//Apply low-pass filter
 		if (filterType == filterType_box)
@@ -756,32 +761,58 @@ bool serialHandler() {
 
 /* Evaluate button presses */
 void buttonHandler() {
-	// Count the time to choose selection
+	//Count the time to choose selection
 	long startTime = millis();
+	delay(10);
 	long endTime = millis() - startTime;
-	while ((extButtonPressed()) && (endTime <= 1000))
+
+	//As long as the button is pressed
+	while (extButtonPressed() && (endTime <= 1000))
 		endTime = millis() - startTime;
-	endTime = millis() - startTime;
-	//Short press - request to save an image
-	if ((endTime < 1000) && (sendCmd == FRAME_NORMAL)) {
-		sendCmd = FRAME_CAPTURE;
+
+	//Short press - request to save a thermal image
+	if (endTime < 1000) {
+		sendCmd = FRAME_CAPTURE_THERMAL;
 	}
+
 	//Long press - request to start or stop a video
 	else {
-		//Start video
-		if ((videoSave == videoSave_disabled) && (sendCmd != FRAME_STOPVID)) {
-			sendCmd = FRAME_STARTVID;
-			videoSave = videoSave_recording;
-			while (extButtonPressed());
-		}
-		//Stop video
-		if ((videoSave == videoSave_recording) && (sendCmd != FRAME_STARTVID)) {
-			sendCmd = FRAME_STOPVID;
-			videoSave = videoSave_disabled;
-			while (extButtonPressed());
-		}
+		sendCmd = FRAME_CAPTURE_VIDEO;
+		//Wait until button release
+		while (extButtonPressed());
 	}
 }
+
+/* Evaluate touch presses */
+bool touchHandler()
+{
+	//Count the time to choose selection
+	long startTime = millis();
+	delay(10);
+	long endTime = millis() - startTime;
+
+	//Wait for touch release, but not longer than a second
+	if (touch_capacitive) {
+		while ((touch_touched()) && (endTime <= 1000))
+			endTime = millis() - startTime;
+	}
+	else {
+		while ((!digitalRead(pin_touch_irq)) && (endTime <= 1000))
+			endTime = millis() - startTime;
+	}
+	endTime = millis() - startTime;
+
+	//Short press - take visual image
+	if (endTime < 1000)
+	{
+		sendCmd = FRAME_CAPTURE_VISUAL;
+		return false;
+	}
+		
+	//Long press
+	return true;
+}
+
 
 /* Check for serial connection */
 void checkSerial() {
@@ -831,9 +862,10 @@ void checkForUpdater()
 void serialOutput() {
 	//Send the frames
 	while (true) {
-		//Abort transmission when touched
+		//Abort transmission when touched long or save visual when short
 		if (touch_touched() && checkDiagnostic(diag_touch))
-			break;
+			if (touchHandler())
+				break;
 		//Get the temps
 		if(checkDiagnostic(diag_lep_data))
 			getTemperatures();
@@ -865,7 +897,7 @@ void serialInit()
 	//Select color scheme
 	selectColorScheme();
 	//Clear show temp array
-	clearTemperatures();
+	clearTempPoints();
 
 	//Set calibration status to standard
 	calStatus = cal_standard;
@@ -879,7 +911,7 @@ void serialInit()
 void serialConnect() {
 	//Show message
 	showFullMessage((char*)"Serial connection detected!");
-	display_print((char*) "Touch screen to return", CENTER, 170);
+	display_print((char*) "Touch screen long to return", CENTER, 170);
 	delay(1000);
 
 	//Disable screen backlight
@@ -926,7 +958,4 @@ void serialConnect() {
 		lepton_ffcMode(true);
 		leptonShutter = leptonShutter_auto;
 	}
-
-	//Disable video mode
-	videoSave = videoSave_disabled;
 }

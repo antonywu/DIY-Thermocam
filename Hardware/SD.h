@@ -82,44 +82,35 @@ void dateTime(uint16_t* date, uint16_t* time) {
 /* Begin the SD card */
 bool beginSD()
 {
-	return sd.begin(pin_sd_cs, SPI_FULL_SPEED);
+	bool ret;
+	
+	//Start alternative clockline
+	startAltClockline();
+	
+	//Try to begin the SD card at full speed
+	ret = sd.begin(pin_sd_cs, SPI_FULL_SPEED);
+	
+	//End alternative clockline
+	endAltClockline();
+	
+	//Return result
+	return ret;
 }
-
 
 /* Initializes the SD card */
 void initSD() {
 	//Storage info string
 	sdInfo = " -  /  -  MB";
-	//Init the SD Card for DIY-Thermocam V1
-	if ((mlx90614Version == mlx90614Version_new) && (
-		teensyVersion == teensyVersion_old)) {
-		startAltClockline();
-		//Check if the sd card works and refresh space
-		if (beginSD()) {
-			endAltClockline();
-			refreshFreeSpace();
-		}
-		//Not working, set diagnosis
-		else
-		{
-			setDiagnostic(diag_sd);
-			endAltClockline();
-		}
-	}
-	//Try to init for ThermocamV4 & DIY-Thermocam V2
-	else
-	{
-		startAltClockline();
-		//Begin SD
-		if (beginSD())
-		{
-			endAltClockline();
-			//Refresh space if success
-			refreshFreeSpace();
-		}
-		else
-			endAltClockline();
-	}
+
+	//Check if the sd card works
+	if (beginSD())
+		refreshFreeSpace();
+
+	//Not working, set diagnosis on DIY-Thermocam V1 only
+	else if ((mlx90614Version == mlx90614Version_new) && (
+		teensyVersion == teensyVersion_old))
+		setDiagnostic(diag_sd);
+
 	//Set SD Timestamp to current time
 	SdFile::dateTimeCallback(dateTime);
 }

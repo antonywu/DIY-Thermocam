@@ -2,7 +2,7 @@
 #define _XPT2046_Touchscreen_h_
 
 #include "Arduino.h"
-#include "../../Libraries/SPI/SPI.h"  
+#include "../../Libraries/SPI/SPI.h"
 #include "Point.h"
 
 class XPT2046_Touchscreen {

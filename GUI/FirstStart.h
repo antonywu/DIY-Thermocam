@@ -22,43 +22,56 @@ boolean checkFirstStart() {
 
 /* Show welcome Screen for the first start procedure */
 void welcomeScreen() {
+	//Background & Title
 	display_fillScr(200, 200, 200);
 	display_setBackColor(200, 200, 200);
 	display_setFont(smallFont);
 	display_printC("Welcome to the", CENTER, 20);
 	display_setFont(bigFont);
+
 	//DIY-Thermocam V2
-	if(teensyVersion == teensyVersion_new)
+	if (teensyVersion == teensyVersion_new)
 		display_printC("DIY-Thermocam V2", CENTER, 60, VGA_BLUE);
+
 	//DIY-Thermocam V1
-	else if(mlx90614Version == mlx90614Version_new)
+	else if (mlx90614Version == mlx90614Version_new)
 		display_printC("DIY-Thermocam V1", CENTER, 60, VGA_BLUE);
+
 	//Thermocam V4
 	else
 		display_printC("Cheap-Thermocam V4", CENTER, 60, VGA_BLUE);
+
+	//Explanation
 	display_setFont(smallFont);
 	display_printC("This is the first time setup.", CENTER, 110);
 	display_printC("It will guide you through the", CENTER, 140);
 	display_printC("basic settings for your device.", CENTER, 170);
 	display_printC("-> Please touch screen <-", CENTER, 210, VGA_BLUE);
+
 	//Wait for touch press or updater request
 	while (!touch_touched())
 		checkForUpdater();
+
 	//Touch release again
 	while (touch_touched());
 }
 
 /* Shows an info screen during the first start procedure */
 void infoScreen(String* text, bool cont = true) {
+	//Background & Title
 	display_fillScr(200, 200, 200);
 	display_setBackColor(200, 200, 200);
 	display_setFont(bigFont);
 	display_printC(text[0], CENTER, 20, VGA_BLUE);
+
+	//Content
 	display_setFont(smallFont);
 	display_printC(text[1], CENTER, 55);
 	display_printC(text[2], CENTER, 80);
 	display_printC(text[3], CENTER, 105);
 	display_printC(text[4], CENTER, 130);
+
+	//Show hint to touch the screen
 	if (cont) {
 		display_printC(text[5], CENTER, 155);
 		display_printC(text[6], CENTER, 180);
@@ -69,6 +82,8 @@ void infoScreen(String* text, bool cont = true) {
 		//Touch release again
 		while (touch_touched());
 	}
+
+	//Show more information
 	else {
 		display_printC(text[5], CENTER, 180);
 		display_printC(text[6], CENTER, 205);
@@ -77,6 +92,7 @@ void infoScreen(String* text, bool cont = true) {
 
 /* Setting screen for the time and date */
 void timeDateScreen() {
+	//Content
 	String text[7];
 	text[0] = "Set Time & Date";
 	text[1] = "In the next screen, you can";
@@ -86,16 +102,19 @@ void timeDateScreen() {
 	text[5] = "not survive a reboot, check";
 	text[6] = "the coin cell battery voltage.";
 	infoScreen(text);
+
 	//Adjust Time & Date settings
 	setTime(12, 30, 30, 15, 6, 2016);
 	timeAndDateMenu(true);
 	timeAndDateMenuHandler(true);
+
 	//Set time to RTC
 	Teensy3Clock.set(now());
 }
 
 /* Setting screen for the temperature format */
 void tempFormatScreen() {
+	//Content
 	String text[7];
 	text[0] = "Set Temp. Format";
 	text[1] = "In the next screen, you can";
@@ -105,12 +124,14 @@ void tempFormatScreen() {
 	text[5] = "Fahrenheit, the conversion will";
 	text[6] = "be done automatically.";
 	infoScreen(text);
-	//Temperature format
+
+	//Temperature format menu
 	tempFormatMenu(true);
 }
 
 /* Setting screen for the convert image option */
 void convertImageScreen() {
+	//Content
 	String text[7];
 	text[0] = "Convert DAT to BMP";
 	text[1] = "In the next screen, select if";
@@ -120,12 +141,14 @@ void convertImageScreen() {
 	text[5] = "You can still convert images man-";
 	text[6] = "ually in the load menu later.";
 	infoScreen(text);
-	//Convert image
+
+	//Convert image menu
 	convertImageMenu(true);
 }
 
 /* Setting screen for the visual image option */
 void visualImageScreen() {
+	//Content
 	String text[7];
 	text[0] = "Save visual image";
 	text[1] = "In the next screen, choose";
@@ -135,12 +158,14 @@ void visualImageScreen() {
 	text[5] = "Enable this if you want to";
 	text[6] = "create combined images on the PC.";
 	infoScreen(text);
-	//Visual image
+
+	//Visual image menu
 	visualImageMenu(true);
 }
 
 /* Setting screen for the combined image alignment */
 void combinedAlignmentScreen() {
+	//Content
 	String text[7];
 	text[0] = "Combined Alignment";
 	text[1] = "In the next screen, you can";
@@ -150,15 +175,18 @@ void combinedAlignmentScreen() {
 	text[5] = "to change the alpha transparency";
 	text[6] = "and touch the middle to refresh.";
 	infoScreen(text);
+
 	//Set color scheme to rainbow
 	colorMap = colorMap_rainbow;
 	colorElements = 256;
+
 	//Adjust combined menu
 	adjustCombinedNewMenu(true);
 }
 
 /* Setting screen for the calibration procedure */
 void calibrationHelperScreen() {
+	//Content
 	String text[7];
 	text[0] = "Calibration";
 	text[1] = "Before using the device, you need";
@@ -168,6 +196,7 @@ void calibrationHelperScreen() {
 	text[5] = "slowly, until the calibration";
 	text[6] = "process has been completed.";
 	infoScreen(text);
+
 	//Calibration procedure
 	calibrationProcess(false, true);
 }
@@ -177,13 +206,19 @@ void firstFormat() {
 	//ThermocamV4 or DIY-Thermocam V2, check SD card
 	if ((mlx90614Version == mlx90614Version_old) ||
 		(teensyVersion == teensyVersion_new)) {
+
+		//Show message
 		showFullMessage((char*) "Checking SD card..");
+
+		//Check for SD card
 		if (!checkSDCard()) {
 			showFullMessage((char*) "Please insert SD card!");
+			//Wait until card is inserted
 			while (!checkSDCard())
 				delay(1000);
 		}
 	}
+
 	//Format the SD card
 	showFullMessage((char*) "Formatting SD card..");
 	formatCard();
@@ -191,6 +226,7 @@ void firstFormat() {
 
 /* Show the first start complete screen */
 void firstStartComplete() {
+	//Content
 	String text[7];
 	text[0] = "Setup completed";
 	text[1] = "The first-time setup is";
@@ -200,6 +236,8 @@ void firstStartComplete() {
 	text[5] = "Afterwards, you will be redirected";
 	text[6] = "to the align combined menu.";
 	infoScreen(text, false);
+	
+	//Wait for hard-reset
 	while (true);
 }
 
@@ -214,9 +252,10 @@ void liveModeHelper() {
 	camera_changeRes(camera_resLow);
 	combinedAlignmentScreen();
 	camera_changeRes(camera_resHigh);
+
 	//Do the first time calibration
 	calibrationHelperScreen();
-	//Array to store up to 7 lines of text
+
 	String text[7];
 	//Hint screen for the live mode #1 
 	text[0] = "First time helper";
@@ -235,6 +274,7 @@ void liveModeHelper() {
 	text[6] = "sing the screen long in live mode.";
 	infoScreen(text);
 	showFullMessage((char*)"Please wait..");
+	
 	//Set EEPROM marker to complete
 	EEPROM.write(eeprom_liveHelper, eeprom_setValue);
 }
@@ -242,15 +282,21 @@ void liveModeHelper() {
 
 /* Set the EEPROM values to default for the first time */
 void stdEEPROMSet() {
+	//Show message
 	showFullMessage((char*) "Flashing spot EEPROM settings..");
+
 	//Set spot maximum temp to 380°C
 	mlx90614_setMax();
+
 	//Set spot minimum temp to -70°
 	mlx90614_setMin();
+
 	//Set spot filter settings
 	mlx90614_setFilter();
+
 	//Set spot emissivity to 0.9
 	mlx90614_setEmissivity();
+
 	//Set device EEPROM settings
 	EEPROM.write(eeprom_rotationEnabled, false);
 	EEPROM.write(eeprom_spotEnabled, false);
@@ -264,14 +310,19 @@ void stdEEPROMSet() {
 	EEPROM.write(eeprom_minMaxPoints, minMaxPoints_max);
 	EEPROM.write(eeprom_screenOffTime, screenOffTime_disabled);
 	EEPROM.write(eeprom_hotColdMode, hotColdMode_disabled);
+
 	//Set Color Scheme to Rainbow
 	EEPROM.write(eeprom_colorScheme, colorScheme_rainbow);
+
 	//Set filter type to box blur
 	EEPROM.write(eeprom_filterType, filterType_gaussian);
+
 	//Set current firmware version
 	EEPROM.write(eeprom_fwVersion, fwVersion);
+
 	//Set first start marker to true
 	EEPROM.write(eeprom_firstStart, eeprom_setValue);
+
 	//Set live helper to false to show it the next time
 	EEPROM.write(eeprom_liveHelper, false);
 }
@@ -280,20 +331,28 @@ void stdEEPROMSet() {
 void firstStart() {
 	//Clear EEPROM
 	clearEEPROM();
+
 	//Welcome screen
 	welcomeScreen();
+
 	//Hint screen for the time and date settings
 	timeDateScreen();
+
 	//Hint screen for temperature format setting
 	tempFormatScreen();
+
 	//Hint screen for the convert image settings
 	convertImageScreen();
+
 	//Hint screen for the visual image settings
 	visualImageScreen();
+
 	//Format SD card for the first time
 	firstFormat();
+
 	//Set EEPROM values
 	stdEEPROMSet();
+
 	//Show completion message
 	firstStartComplete();
 }

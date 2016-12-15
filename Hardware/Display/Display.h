@@ -380,6 +380,8 @@ void display_drawVLine(int x, int y, int l)
 /* Set a specific pixel in that color */
 void display_setPixel(word color)
 {
+	uint32_t pos;
+
 	//Write to display
 	if (!display_writeToImage) {
 		SPI.beginTransaction(SPISettings(SPICLOCK, MSBFIRST, SPI_MODE0));
@@ -391,10 +393,19 @@ void display_setPixel(word color)
 	{
 		//320x240 for Teensy 3.6
 		if (teensyVersion == teensyVersion_new)
-			bigBuffer[((imageY) * 320) + imageX] = color;
+		{
+			pos = ((imageY) * 320) + imageX;
+			if(pos < 76800)
+				bigBuffer[pos] = color;
+		}
+			
 		//160x120 for Teensy 3.1 / 3.2
 		else
-			smallBuffer[((imageY) * 160) + imageX] = color;
+		{
+			pos = ((imageY) * 160) + imageX;
+			if(pos < 19200)
+				smallBuffer[pos] = color;
+		}
 	}
 }
 

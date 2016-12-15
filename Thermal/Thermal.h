@@ -30,7 +30,8 @@ void touchIRQ() {
 		long startTime = millis();
 		delay(10);
 		long endTime = millis() - startTime;
-		//For capacitive touch
+
+		//Wait for touch release, but not longer than a second
 		if (touch_capacitive) {
 			while ((touch_touched()) && (endTime <= 1000))
 				endTime = millis() - startTime;
@@ -40,6 +41,7 @@ void touchIRQ() {
 				endTime = millis() - startTime;
 		}
 		endTime = millis() - startTime;
+
 		//Short press - show menu
 		if (endTime < 1000)
 			showMenu = true;
@@ -57,22 +59,27 @@ void buttonIRQ() {
 		long startTime = millis();
 		delay(10);
 		long endTime = millis() - startTime;
+
 		//As long as the button is pressed
 		while (extButtonPressed() && (endTime <= 1000))
 			endTime = millis() - startTime;
+
 		//Short press - save image to SD Card
 		if (endTime < 1000)
 			//Prepare image save but let screen refresh first
 			imgSave = imgSave_set;
+
 		//Enable video mode
 		else
 			videoSave = videoSave_menu;
 	}
+
 	//When in video save recording mode, go to processing
 	if (videoSave == videoSave_recording) {
 		videoSave = videoSave_processing;
 		while (extButtonPressed());
 	}
+
 	//When in video save processing, end it
 	else if (videoSave == videoSave_processing) {
 		videoSave = videoSave_menu;
@@ -82,18 +89,14 @@ void buttonIRQ() {
 
 /* Handler for a long touch press */
 void longTouchHandler() {
-	//If not warmed up, do nothing
-	if (calStatus == cal_warmup) {
-		showTransMessage((char*) "Wait for warmup");
-	}
-
 	//When in auto mode, toggle between locked & unlocked
-	else if (autoMode) {
+	if (autoMode) {
 		//Unlock limits
 		if (limitsLocked) {
 			showTransMessage((char*) "Limits unlocked");
 			limitsLocked = false;
 		}
+
 		//Lock limits
 		else {
 			showTransMessage((char*) "Limits locked");
@@ -103,7 +106,9 @@ void longTouchHandler() {
 
 	//When in manual mode, toggle between presets
 	else {
+		//Read preset from EEPROM
 		byte minMaxPreset = EEPROM.read(eeprom_minMaxPreset);
+
 		//When in temporary limits, go to preset 1
 		if (minMaxPreset == minMax_temporary) {
 			showTransMessage((char*) "Switch to Preset 1");
@@ -231,31 +236,37 @@ void changeDisplayOptions(byte* pos) {
 		batteryEnabled = !batteryEnabled;
 		EEPROM.write(eeprom_batteryEnabled, batteryEnabled);
 		break;
+
 		//Time
 	case 1:
 		timeEnabled = !timeEnabled;
 		EEPROM.write(eeprom_timeEnabled, timeEnabled);
 		break;
+
 		//Date
 	case 2:
 		dateEnabled = !dateEnabled;
 		EEPROM.write(eeprom_dateEnabled, dateEnabled);
 		break;
+
 		//Spot
 	case 3:
 		spotEnabled = !spotEnabled;
 		EEPROM.write(eeprom_spotEnabled, spotEnabled);
 		break;
+
 		//Colorbar
 	case 4:
 		colorbarEnabled = !colorbarEnabled;
 		EEPROM.write(eeprom_colorbarEnabled, colorbarEnabled);
 		break;
+
 		//Storage
 	case 5:
 		storageEnabled = !storageEnabled;
 		EEPROM.write(eeprom_storageEnabled, storageEnabled);
 		break;
+
 		//Filter
 	case 6:
 		if (filterType == filterType_box)
@@ -266,6 +277,7 @@ void changeDisplayOptions(byte* pos) {
 			filterType = filterType_box;
 		EEPROM.write(eeprom_filterType, filterType);
 		break;
+
 		//Text color
 	case 7:
 		if (textColor == textColor_white)
@@ -280,6 +292,7 @@ void changeDisplayOptions(byte* pos) {
 			textColor = textColor_white;
 		EEPROM.write(eeprom_textColor, textColor);
 		break;
+
 		//Hottest or coldest display
 	case 8:
 		if (minMaxPoints == minMaxPoints_disabled)
@@ -304,91 +317,109 @@ void selectColorScheme() {
 		colorMap = colorMap_arctic;
 		colorElements = 240;
 		break;
+
 		//Black-Hot
 	case colorScheme_blackHot:
 		colorMap = colorMap_blackHot;
 		colorElements = 224;
 		break;
+
 		//Blue-Red
 	case colorScheme_blueRed:
 		colorMap = colorMap_blueRed;
 		colorElements = 192;
 		break;
+
 		//Coldest
 	case colorScheme_coldest:
 		colorMap = colorMap_coldest;
 		colorElements = 224;
 		break;
+
 		//Contrast
 	case colorScheme_contrast:
 		colorMap = colorMap_contrast;
 		colorElements = 224;
 		break;
+
 		//Double-Rainbow
 	case colorScheme_doubleRainbow:
 		colorMap = colorMap_doubleRainbow;
 		colorElements = 256;
 		break;
+
 		//Gray-Red
 	case colorScheme_grayRed:
 		colorMap = colorMap_grayRed;
 		colorElements = 224;
 		break;
+
 		//Glowbow
 	case colorScheme_glowBow:
 		colorMap = colorMap_glowBow;
 		colorElements = 224;
 		break;
+
 		//Grayscale
 	case colorScheme_grayscale:
 		colorMap = colorMap_grayscale;
 		colorElements = 256;
 		break;
+
 		//Hottest
 	case colorScheme_hottest:
 		colorMap = colorMap_hottest;
 		colorElements = 224;
 		break;
+
 		//Ironblack
 	case colorScheme_ironblack:
 		colorMap = colorMap_ironblack;
 		colorElements = 256;
 		break;
+
 		//Lava
 	case colorScheme_lava:
 		colorMap = colorMap_lava;
 		colorElements = 240;
 		break;
+
 		//Medical
 	case colorScheme_medical:
 		colorMap = colorMap_medical;
 		colorElements = 224;
 		break;
+
 		//Rainbow
 	case colorScheme_rainbow:
 		colorMap = colorMap_rainbow;
 		colorElements = 256;
 		break;
+
 		//Wheel 1
 	case colorScheme_wheel1:
 		colorMap = colorMap_wheel1;
 		colorElements = 256;
 		break;
+
 		//Wheel 2
 	case colorScheme_wheel2:
 		colorMap = colorMap_wheel2;
 		colorElements = 256;
 		break;
+
 		//Wheel 3
 	case colorScheme_wheel3:
 		colorMap = colorMap_wheel3;
 		colorElements = 256;
 		break;
+
 		//White-Hot
 	case colorScheme_whiteHot:
 		colorMap = colorMap_whiteHot;
 		colorElements = 224;
 		break;
+
 		//Yellow
 	case colorScheme_yellow:
 		colorMap = colorMap_yellow;
@@ -423,26 +454,31 @@ void liveModeInit() {
 	//Activate laser if enabled on old HW
 	if (laserEnabled && (teensyVersion == teensyVersion_old))
 		digitalWrite(pin_laser, HIGH);
+
 	//Select color scheme
 	selectColorScheme();
+
 	//For visual / combined, change cam res and take firts shot
 	if (displayMode != displayMode_thermal)
 	{
 		camera_changeRes(camera_resLow);
 		camera_capture();
 	}
+
 	//Attach the Button interrupt
 	attachInterrupt(pin_button, buttonIRQ, RISING);
 	//Attach the Touch interrupt
 	attachInterrupt(pin_touch_irq, touchIRQ, FALLING);
-	//Clear showTemp values
-	clearTemperatures();
+
+	//Clear temperature points array
+	clearTempPoints();
 }
 
 /* Main entry point for the live mode */
 void liveMode() {
 	//Init
 	liveModeInit();
+
 	//Main Loop
 	while (true) {
 		//Check for serial connection
@@ -455,9 +491,9 @@ void liveMode() {
 		if (showMenu)
 			mainMenu();
 
-		//Check the requirements for image save
+		//Start the image save procedure
 		if (imgSave == imgSave_set)
-			checkImageSave();
+			imgSaveStart();
 
 		//Create thermal image
 		if (displayMode == displayMode_thermal)
@@ -467,15 +503,14 @@ void liveMode() {
 			createVisCombImg();
 
 		//Display additional information
-		if (imgSave != imgSave_set)
-			displayInfos();
+		displayInfos();
 
 		//Show the content on the screen
 		showImage();
 
 		//Save the converted / visual image
 		if (imgSave == imgSave_save)
-			saveImages();
+			imgSaveEnd();
 
 		//Go into video mode
 		if (videoSave == videoSave_menu)
@@ -485,5 +520,4 @@ void liveMode() {
 		if (longTouch)
 			longTouchHandler();
 	}
-
 }

@@ -1,7 +1,7 @@
-/* Arduino SdSpiAltDriver Library
+/* Arduino SdSpi Library
  * Copyright (C) 2013 by William Greiman
  *
- * This file is part of the Arduino SdSpiAltDriver Library
+ * This file is part of the Arduino SdSpi Library
  *
  * This Library is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,32 +14,14 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with the Arduino SdSpiAltDriver Library.  If not, see
+ * along with the Arduino SdSpi Library.  If not, see
  * <http://www.gnu.org/licenses/>.
  */
-#include "SdSpiDriver.h"
+#include "SdSpi.h"
 #if defined(__arm__) && defined(CORE_TEENSY)
 // SPI definitions
 #include "kinetis.h"
-
-//------------------------------------------------------------------------------
-void SdSpiAltDriver::activate() {
-  SPI.beginTransaction(m_spiSettings);
-}
-//------------------------------------------------------------------------------
-void SdSpiAltDriver::begin(uint8_t chipSelectPin) {
-  m_csPin = chipSelectPin;
-  pinMode(m_csPin, OUTPUT);
-  digitalWrite(m_csPin, HIGH);
-  SPI.begin();
-}
-//------------------------------------------------------------------------------
-void SdSpiAltDriver::deactivate() {
-  SPI.endTransaction();
-}
-//==============================================================================
 #ifdef KINETISK
-
 // use 16-bit frame if SPI_USE_8BIT_FRAME is zero
 #define SPI_USE_8BIT_FRAME 0
 // Limit initial fifo to three entries to avoid fifo overrun
@@ -55,8 +37,68 @@ void SdSpiAltDriver::deactivate() {
 #define SPI_PUSHR_CTAS(n) (((n) & 7) << 28)
 #endif  // SPI_PUSHR_CTAS
 //------------------------------------------------------------------------------
+/**
+ * initialize SPI pins
+ */
+void SdSpi::begin(uint8_t chipSelectPin) {
+  pinMode(chipSelectPin, OUTPUT);
+  digitalWrite(chipSelectPin, HIGH);
+  SIM_SCGC6 |= SIM_SCGC6_SPI0;
+}
+//------------------------------------------------------------------------------
+/**
+ * Initialize hardware SPI
+ *
+ */
+void SdSpi::beginTransaction(uint8_t sckDivisor) {
+  uint32_t ctar, ctar0, ctar1;
+#if ENABLE_SPI_TRANSACTIONS
+  SPI.beginTransaction(SPISettings());
+#endif  // #if ENABLE_SPI_TRANSACTIONS
+  if (sckDivisor <= 2) {
+    // 1/2 speed
+    ctar = SPI_CTAR_DBR | SPI_CTAR_BR(0) | SPI_CTAR_CSSCK(0);
+  } else if (sckDivisor <= 4) {
+    // 1/4 speed
+    ctar = SPI_CTAR_BR(0) | SPI_CTAR_CSSCK(0);
+  } else if (sckDivisor <= 8) {
+    // 1/8 speed
+    ctar = SPI_CTAR_BR(1) | SPI_CTAR_CSSCK(1);
+  } else if (sckDivisor <= 12) {
+    // 1/12 speed
+    ctar = SPI_CTAR_BR(2) | SPI_CTAR_CSSCK(2);
+  } else if (sckDivisor <= 16) {
+    // 1/16 speed
+    ctar = SPI_CTAR_BR(3) | SPI_CTAR_CSSCK(3);
+  } else if (sckDivisor <= 32) {
+    // 1/32 speed
+    ctar = SPI_CTAR_PBR(1) | SPI_CTAR_BR(4) | SPI_CTAR_CSSCK(4);
+  } else if (sckDivisor <= 64) {
+    // 1/64 speed
+    ctar = SPI_CTAR_PBR(1) | SPI_CTAR_BR(5) | SPI_CTAR_CSSCK(5);
+  } else {
+    // 1/128 speed
+    ctar = SPI_CTAR_PBR(1) | SPI_CTAR_BR(6) | SPI_CTAR_CSSCK(6);
+  }
+  // CTAR0 - 8 bit transfer
+  ctar0 = ctar | SPI_CTAR_FMSZ(7);
+
+  // CTAR1 - 16 bit transfer
+  ctar1 = ctar | SPI_CTAR_FMSZ(15);
+
+  if (SPI0_CTAR0 != ctar0 || SPI0_CTAR1 != ctar1) {
+    SPI0_MCR = SPI_MCR_MSTR | SPI_MCR_MDIS | SPI_MCR_HALT | SPI_MCR_PCSIS(0x1F);
+    SPI0_CTAR0 = ctar0;
+    SPI0_CTAR1 = ctar1;
+  }
+  SPI0_MCR = SPI_MCR_MSTR | SPI_MCR_PCSIS(0x1F);
+  CORE_PIN11_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
+  CORE_PIN12_CONFIG = PORT_PCR_MUX(2);
+  CORE_PIN13_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
+}
+//------------------------------------------------------------------------------
 /** SPI receive a byte */
-uint8_t SdSpiAltDriver::receive() {
+uint8_t SdSpi::receive() {
   SPI0_MCR |= SPI_MCR_CLR_RXF;
   SPI0_SR = SPI_SR_TCF;
   SPI0_PUSHR = 0xFF;
@@ -65,7 +107,7 @@ uint8_t SdSpiAltDriver::receive() {
 }
 //------------------------------------------------------------------------------
 /** SPI receive multiple bytes */
-uint8_t SdSpiAltDriver::receive(uint8_t* buf, size_t n) {
+uint8_t SdSpi::receive(uint8_t* buf, size_t n) {
   // clear any data in RX FIFO
   SPI0_MCR = SPI_MCR_MSTR | SPI_MCR_CLR_RXF | SPI_MCR_PCSIS(0x1F);
 #if SPI_USE_8BIT_FRAME
@@ -120,7 +162,7 @@ uint8_t SdSpiAltDriver::receive(uint8_t* buf, size_t n) {
 }
 //------------------------------------------------------------------------------
 /** SPI send a byte */
-void SdSpiAltDriver::send(uint8_t b) {
+void SdSpi::send(uint8_t b) {
   SPI0_MCR |= SPI_MCR_CLR_RXF;
   SPI0_SR = SPI_SR_TCF;
   SPI0_PUSHR = b;
@@ -128,7 +170,7 @@ void SdSpiAltDriver::send(uint8_t b) {
 }
 //------------------------------------------------------------------------------
 /** SPI send multiple bytes */
-void SdSpiAltDriver::send(const uint8_t* buf , size_t n) {
+void SdSpi::send(const uint8_t* buf , size_t n) {
   // clear any data in RX FIFO
   SPI0_MCR = SPI_MCR_MSTR | SPI_MCR_CLR_RXF | SPI_MCR_PCSIS(0x1F);
 #if SPI_USE_8BIT_FRAME
@@ -186,12 +228,52 @@ void SdSpiAltDriver::send(const uint8_t* buf , size_t n) {
 #else  // KINETISK
 //==============================================================================
 // Use standard SPI library if not KINETISK
-//------------------------------------------------------------------------------
+/**
+ * Initialize SPI pins.
+ */
+void SdSpi::begin(uint8_t chipSelectPin) {
+  pinMode(chipSelectPin, OUTPUT);
+  digitalWrite(chipSelectPin, HIGH);
+  SPI.begin();
+}
+/** Set SPI options for access to SD/SDHC cards.
+ *
+ * \param[in] divisor SCK clock divider relative to the system clock.
+ */
+void SdSpi::beginTransaction(uint8_t divisor) {
+#if ENABLE_SPI_TRANSACTIONS
+  SPI.beginTransaction(SPISettings());
+#else  // #if ENABLE_SPI_TRANSACTIONS
+  SPI.setBitOrder(MSBFIRST);
+  SPI.setDataMode(SPI_MODE0);
+#endif  // #if ENABLE_SPI_TRANSACTIONS
+#ifndef SPI_CLOCK_DIV128
+  SPI.setClockDivider(divisor);
+#else  // SPI_CLOCK_DIV128
+  int v;
+  if (divisor <= 2) {
+    v = SPI_CLOCK_DIV2;
+  } else  if (divisor <= 4) {
+    v = SPI_CLOCK_DIV4;
+  } else  if (divisor <= 8) {
+    v = SPI_CLOCK_DIV8;
+  } else  if (divisor <= 16) {
+    v = SPI_CLOCK_DIV16;
+  } else  if (divisor <= 32) {
+    v = SPI_CLOCK_DIV32;
+  } else  if (divisor <= 64) {
+    v = SPI_CLOCK_DIV64;
+  } else {
+    v = SPI_CLOCK_DIV128;
+  }
+  SPI.setClockDivider(v);
+#endif  // SPI_CLOCK_DIV128
+}
 /** Receive a byte.
  *
  * \return The byte.
  */
-uint8_t SdSpiAltDriver::receive() {
+uint8_t SdSpi::receive() {
   return SPI.transfer(0XFF);
 }
 /** Receive multiple bytes.
@@ -201,7 +283,7 @@ uint8_t SdSpiAltDriver::receive() {
  *
  * \return Zero for no error or nonzero error code.
  */
-uint8_t SdSpiAltDriver::receive(uint8_t* buf, size_t n) {
+uint8_t SdSpi::receive(uint8_t* buf, size_t n) {
   for (size_t i = 0; i < n; i++) {
     buf[i] = SPI.transfer(0XFF);
   }
@@ -211,7 +293,7 @@ uint8_t SdSpiAltDriver::receive(uint8_t* buf, size_t n) {
  *
  * \param[in] b Byte to send
  */
-void SdSpiAltDriver::send(uint8_t b) {
+void SdSpi::send(uint8_t b) {
   SPI.transfer(b);
 }
 /** Send multiple bytes.
@@ -219,10 +301,16 @@ void SdSpiAltDriver::send(uint8_t b) {
  * \param[in] buf Buffer for data to be sent.
  * \param[in] n Number of bytes to send.
  */
-void SdSpiAltDriver::send(const uint8_t* buf , size_t n) {
+void SdSpi::send(const uint8_t* buf , size_t n) {
   for (size_t i = 0; i < n; i++) {
     SPI.transfer(buf[i]);
   }
 }
 #endif  // KINETISK
+//------------------------------------------------------------------------------
+void SdSpi::endTransaction() {
+#if ENABLE_SPI_TRANSACTIONS
+  SPI.endTransaction();
+#endif  // ENABLE_SPI_TRANSACTIONS
+}
 #endif  // defined(__arm__) && defined(CORE_TEENSY)

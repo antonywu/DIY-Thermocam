@@ -288,8 +288,8 @@ boolean savePackage(byte line, byte segment = 0) {
 		//Lepton2
 		if (leptonVersion != leptonVersion_3_shutter) {
 			//Rotated or old hardware version
-			if (((mlx90614Version == mlx90614Version_old) && (rotationEnabled == 0)) ||
-				((mlx90614Version == mlx90614Version_new) && (rotationEnabled == 1))) {
+			if (((mlx90614Version == mlx90614Version_old) && (!rotationEnabled)) ||
+				((mlx90614Version == mlx90614Version_new) && (rotationEnabled))) {
 				smallBuffer[(line * 2 * 160) + (column * 2)] = result;
 				smallBuffer[(line * 2 * 160) + (column * 2) + 1] = result;
 				smallBuffer[(line * 2 * 160) + 160 + (column * 2)] = result;
@@ -403,12 +403,12 @@ void getTemperatures() {
 	lepton_end();
 }
 
-/* Clears the show temperatures array */
-void clearTemperatures() {
+/* Clears the temperature points array */
+void clearTempPoints() {
 	//Go through the array
 	for (byte i = 0; i < 96; i++) {
-		//Set the index to 65535
-		tempPoints[i][0] = 65535;
+		//Set the index to zero
+		tempPoints[i][0] = 0;
 		//Set the value to zero
 		tempPoints[i][1] = 0;
 	}
@@ -416,7 +416,7 @@ void clearTemperatures() {
 
 /* Shows the temperatures over the smallBuffer on the screen */
 void showTemperatures() {
-	uint16_t xpos, ypos;
+	int16_t xpos, ypos;
 
 	//Go through the array
 	for (byte i = 0; i < 96; i++) {
@@ -424,27 +424,27 @@ void showTemperatures() {
 		uint16_t index = tempPoints[i][0];
 
 		//Check if the tempPoint is active
-		if (index != 65535) {
-			//Calculate x and y position
-			xpos = (index % 160) * 2;
-			ypos = (index / 160) * 2;
+		if (index != 0) {
+			//Index goes from 1 to max
+			index -= 1;
 
-			//Display the point
-			display_print((char*) ".", xpos, ypos);
-			display_print((char*) ".", xpos + 1, ypos);
-			display_print((char*) ".", xpos, ypos + 1);
-			display_print((char*) ".", xpos + 1, ypos + 1);
+			//Calculate x and y position
+			calculatePointPos(&xpos, &ypos, index);
+
+			//Draw the marker
+			display_drawLine(xpos, ypos, xpos, ypos);
 
 			//Calc x position for the text
-			if (xpos < 20)
+			xpos -= 20;
+			if (xpos < 0)
 				xpos = 0;
-			else
-				xpos -= 20;
+			if (xpos > 279)
+				xpos = 279;
 
 			//Calc y position for the text
 			ypos += 15;
-			if (ypos > 239)
-				ypos = 239;
+			if (ypos > 229)
+				ypos = 229;
 
 			//Display the absolute temperature
 			display_printNumF(calFunction(tempPoints[i][1]), 2, xpos, ypos);
@@ -484,7 +484,7 @@ void tempPointFunction(bool remove) {
 	if (remove) {
 		//Go through the array
 		for (byte i = 0; i < 96; i++) {
-			if (tempPoints[i][0] != 65535)
+			if (tempPoints[i][0] != 0)
 			{
 				removed = true;
 				break;
@@ -503,7 +503,7 @@ void tempPointFunction(bool remove) {
 		//Go through the array
 		byte i;
 		for (i = 0; i < 96; i++) {
-			if (tempPoints[i][0] == 65535)
+			if (tempPoints[i][0] == 0)
 			{
 				pos = i;
 				break;
@@ -563,9 +563,9 @@ redraw:
 		for (uint16_t x = xpos - 10; x <= xpos + 10; x++) {
 			for (uint16_t y = ypos - 10; y <= ypos + 10; y++) {
 				//Calculate index number
-				uint16_t index = x + (y * 160);
+				uint16_t index = x + (y * 160) + 1;
 				//If index is valid
-				if ((index >= 0) && (index < 19200)) {
+				if ((index >= 1) && (index <= 19200)) {
 					//Check for all 96 points
 					for (byte i = 0; i < 96; i++)
 					{
@@ -573,7 +573,7 @@ redraw:
 						if (tempPoints[i][0] == index)
 						{
 							//Set to invalid
-							tempPoints[i][0] = 65535;
+							tempPoints[i][0] = 0;
 							//Reset value
 							tempPoints[i][1] = 0;
 							//Set markter to true
@@ -599,7 +599,7 @@ redraw:
 	//Add point
 	else {
 		//Add index
-		tempPoints[pos][0] = xpos + (ypos * 160);
+		tempPoints[pos][0] = xpos + (ypos * 160) + 1;
 		//Set raw value to zero
 		tempPoints[pos][1] = 0;
 		//Show border
@@ -722,23 +722,29 @@ void convertColors(bool small) {
 	}
 }
 
-/* Find the position of the minimum and maximum value */
-void findMinMaxPositions()
+/* Refresh the position and value of the min / max value */
+void refreshMinMax()
 {
-	uint16_t min = 65535;
-	uint16_t max = 0;
+	//Reset values
+	minTempVal = 65535;
+	maxTempVal = 0;
+
 	//Go through the smallBuffer
 	for (int i = 0; i < 19200; i++)
 	{
-		if (smallBuffer[i] < min)
+		//We found a new min
+		if (smallBuffer[i] < minTempVal)
 		{
+			//Save position and value
 			minTempPos = i;
-			min = smallBuffer[i];
+			minTempVal = smallBuffer[i];
 		}
-		if (smallBuffer[i] > max)
+
+		//We found a new max
+		if (smallBuffer[i] > maxTempVal)
 		{
 			maxTempPos = i;
-			max = smallBuffer[i];
+			maxTempVal = smallBuffer[i];
 		}
 	}
 }
@@ -746,31 +752,36 @@ void findMinMaxPositions()
 /* Refresh the temperature points*/
 void refreshTempPoints() {
 	//Go through the array
-	for (byte i = 0; i < 20; i++) {
+	for (byte i = 0; i < 96; i++) {
 		//Get index
 		uint16_t index = tempPoints[i][0];
+
 		//Check if point is active
-		if (index != 65535) {
+		if (index != 0) {
+			//Index goes from 1 to max
+			index -= 1;
+
 			//Calculate x and y position
 			uint16_t xpos = index % 160;
 			uint16_t ypos = index / 160;
+
 			//Update value
 			tempPoints[i][1] = smallBuffer[xpos + (ypos * 160)];
 		}
 	}
 }
 
-/* Calculate the x and y position for min/max out of the pixel index */
-void calculateMinMaxPoint(uint16_t* xpos, uint16_t* ypos, uint16_t pixelIndex) {
+/* Calculate the x and y position out of the pixel index */
+void calculatePointPos(int16_t* xpos, int16_t* ypos, uint16_t pixelIndex) {
 	//Get xpos and ypos
 	*xpos = (pixelIndex % 160) * 2;
 	*ypos = (pixelIndex / 160) * 2;
 
 	//Limit position
-	if (*ypos > 240)
-		*ypos = 240;
-	if (*xpos > 320)
-		*xpos = 320;
+	if (*ypos > 238)
+		*ypos = 228;
+	if (*xpos > 318)
+		*xpos = 318;
 }
 
 /* Creates a thermal smallBuffer and stores it in the array */
@@ -786,7 +797,7 @@ void createThermalImg(bool small) {
 
 	//Find min / max position
 	if (minMaxPoints != minMaxPoints_disabled)
-		findMinMaxPositions();
+		refreshMinMax();
 
 	//Find min and max if not in manual mode and limits not locked
 	if ((autoMode) && (!limitsLocked))
@@ -822,7 +833,7 @@ void createVisCombImg() {
 
 	//Find min / max position
 	if (minMaxPoints != minMaxPoints_disabled)
-		findMinMaxPositions();
+		refreshMinMax();
 
 	//Find min and max if not in manual mode and limits not locked
 	if ((autoMode) && (!limitsLocked))
@@ -832,7 +843,7 @@ void createVisCombImg() {
 	if (teensyVersion == teensyVersion_new)
 	{
 		//Fill array white
-		for (int i = 0; i < 76800; i++)
+		for (uint32_t i = 0; i < 76800; i++)
 			bigBuffer[i] = 65535;
 		//Get image from cam
 		camera_get(camera_stream);
@@ -866,5 +877,4 @@ void createVisCombImg() {
 		//Get the visual image and decompress it combined
 		camera_get(camera_stream);
 	}
-
 }

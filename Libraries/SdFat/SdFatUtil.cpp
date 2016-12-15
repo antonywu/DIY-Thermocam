@@ -17,38 +17,25 @@
  * along with the Arduino SdFat Library.  If not, see
  * <http://www.gnu.org/licenses/>.
  */
-#ifndef FreeStack_h
-#define FreeStack_h
-/**
- * \file
- * \brief FreeStack() function.
- */
-#if defined(__AVR__) || defined(DOXYGEN)
-/** boundary between stack and heap. */
-extern char *__brkval;
-/** End of bss section.*/
-extern char __bss_end;
-/** Amount of free stack space.
- * \return The number of free bytes.
- */
-static int FreeStack() {
-  char top;
-  return __brkval ? &top - __brkval : &top - &__bss_end;
-}
-#elif defined(PLATFORM_ID)  // Particle board
-static int FreeStack() {
-  return System.freeMemory();
-}
-#elif defined(__arm__)
+#include <stdlib.h>
+#include "SdFat.h"
+#include "SdFatUtil.h"
+//------------------------------------------------------------------------------
+#ifdef __arm__
 extern "C" char* sbrk(int incr);
-static int FreeStack() {
+int SdFatUtil::FreeRam() {
   char top;
   return &top - reinterpret_cast<char*>(sbrk(0));
 }
-#else
-#warning FreeStack is not defined for this system.
-static int FreeStack() {
-  return 0;
+#else  // __arm__
+extern char *__brkval;
+extern char __bss_end;
+/** Amount of free RAM
+ * \return The number of free bytes.
+ */
+int SdFatUtil::FreeRam() {
+  char top;
+  return __brkval ? &top - __brkval : &top - &__bss_end;
 }
-#endif
-#endif  // FreeStack_h
+#endif  // __arm
+

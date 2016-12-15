@@ -1,5 +1,5 @@
 /* Arduino SdFat Library
- * Copyright (C) 2016 by William Greiman
+ * Copyright (C) 2012 by William Greiman
  *
  * This file is part of the Arduino SdFat Library
  *
@@ -23,13 +23,16 @@
  * \file
  * \brief SdFat class
  */
-#include "SysCall.h"
-#include "BlockDriver.h"
+#ifdef ARDUINO
+#include "SdSpiCard/SdSpiCard.h"
 #include "FatLib/FatLib.h"
-#include "SdCard/SdioCard.h"
+#else  // ARDUINO
+#include "SdSpiCard.h"
+#include "FatLib.h"
+#endif  // ARDUINO
 //------------------------------------------------------------------------------
 /** SdFat version YYYYMMDD */
-#define SD_FAT_VERSION 20160913
+#define SD_FAT_VERSION 20160719
 //==============================================================================
 /**
  * \class SdBaseFile
@@ -48,7 +51,6 @@ class SdBaseFile : public FatFile {
    */
   SdBaseFile(const char* path, uint8_t oflag) : FatFile(path, oflag) {}
 };
-//-----------------------------------------------------------------------------
 #if ENABLE_ARDUINO_FEATURES
 /**
  * \class SdFile
@@ -68,24 +70,25 @@ class SdFile : public PrintFile {
   SdFile(const char* path, uint8_t oflag) : PrintFile(path, oflag) {}
 };
 #endif  // #if ENABLE_ARDUINO_FEATURES
-//-----------------------------------------------------------------------------
 /**
- * \class SdFileSystem
+ * \class SdFatBase
  * \brief Virtual base class for %SdFat library.
  */
-template<class SdDriverClass>
-class SdFileSystem : public FatFileSystem {
+class SdFatBase : public FatFileSystem {
  public:
-  /** Initialize file system.
+  /** Initialize SD card and file system.
+   * \param[in] spi SPI object for the card.
+   * \param[in] csPin SD card chip select pin.
+   * \param[in] divisor SPI divisor.
    * \return true for success else false.
    */
-  bool begin() {
-    return FatFileSystem::begin(&m_card);
+  bool begin(SdSpiCard::m_spi_t* spi, uint8_t csPin = SS, uint8_t divisor = 2) {
+    return m_sdCard.begin(spi, csPin, divisor) &&
+           FatFileSystem::begin();
   }
   /** \return Pointer to SD card object */
-  SdDriverClass *card() {
-    m_card.syncBlocks();
-    return &m_card;
+  SdSpiCard *card() {
+    return &m_sdCard;
   }
   /** %Print any SD error code to Serial and halt. */
   void errorHalt() {
@@ -95,10 +98,7 @@ class SdFileSystem : public FatFileSystem {
    *
    * \param[in] pr Print destination.
    */
-  void errorHalt(Print* pr) {
-    errorPrint(pr);
-    SysCall::halt();
-  }
+  void errorHalt(Print* pr);
   /** %Print msg, any SD error code and halt.
    *
    * \param[in] msg Message to print.
@@ -111,10 +111,8 @@ class SdFileSystem : public FatFileSystem {
    * \param[in] pr Print destination.
    * \param[in] msg Message to print.
    */
-  void errorHalt(Print* pr, char const* msg) {
-    errorPrint(pr, msg);
-    SysCall::halt();
-  }
+  void errorHalt(Print* pr, char const* msg);
+
   /** %Print any SD error code to Serial */
   void errorPrint() {
     errorPrint(&Serial);
@@ -122,15 +120,7 @@ class SdFileSystem : public FatFileSystem {
   /** %Print any SD error code.
    * \param[in] pr Print device.
    */
-  void errorPrint(Print* pr) {
-    if (!cardErrorCode()) {
-      return;
-    }
-    pr->print(F("SD errorCode: 0X"));
-    pr->print(cardErrorCode(), HEX);
-    pr->print(F(",0X"));
-    pr->println(cardErrorData(), HEX);
-  }
+  void errorPrint(Print* pr);
   /** %Print msg, any SD error code.
    *
    * \param[in] msg Message to print.
@@ -143,10 +133,14 @@ class SdFileSystem : public FatFileSystem {
    * \param[in] pr Print destination.
    * \param[in] msg Message to print.
    */
-  void errorPrint(Print* pr, char const* msg) {
-    pr->print(F("error: "));
-    pr->println(msg);
-    errorPrint(pr);
+  void errorPrint(Print* pr, char const* msg);
+
+  /** Diagnostic call to initialize FatFileSystem - use for
+   *  diagnostic purposes only.
+   *  \return true for success else false.
+   */
+  bool fsBegin() {
+    return FatFileSystem::begin();
   }
   /** %Print any SD error code and halt. */
   void initErrorHalt() {
@@ -156,65 +150,42 @@ class SdFileSystem : public FatFileSystem {
    *
    * \param[in] pr Print destination.
    */
-  void initErrorHalt(Print* pr) {
-    initErrorPrint(pr);
-    SysCall::halt();
-  }
-  /**Print message, error details, and halt after begin() fails.
+  void initErrorHalt(Print* pr);
+  /**Print message, error details, and halt after SdFat::init() fails.
    *
    * \param[in] msg Message to print.
    */
   void initErrorHalt(char const *msg) {
     initErrorHalt(&Serial, msg);
   }
-  /**Print message, error details, and halt after begin() fails.
+  /**Print message, error details, and halt after SdFatBase::init() fails.
    * \param[in] pr Print device.
    * \param[in] msg Message to print.
    */
-  void initErrorHalt(Print* pr, char const *msg) {
-    pr->println(msg);
-    initErrorHalt(pr);
-  }
+  void initErrorHalt(Print* pr, char const *msg);
 
-  /** Print error details after begin() fails. */
+  /** Print error details after SdFat::init() fails. */
   void initErrorPrint() {
     initErrorPrint(&Serial);
   }
-  /** Print error details after begin() fails.
+  /** Print error details after SdFatBase::init() fails.
    *
    * \param[in] pr Print destination.
    */
-  void initErrorPrint(Print* pr) {
-    if (cardErrorCode()) {
-      pr->println(F("Can't access SD card. Do not reformat."));
-      if (cardErrorCode() == SD_CARD_ERROR_CMD0) {
-        pr->println(F("No card, wrong chip select pin, or SPI problem?"));
-      }
-      errorPrint(pr);
-    } else if (vol()->fatType() == 0) {
-      pr->println(F("Invalid format, reformat SD."));
-    } else if (!vwd()->isOpen()) {
-      pr->println(F("Can't open root directory."));
-    } else {
-      pr->println(F("No error found."));
-    }
-  }
-  /**Print message and error details and halt after begin() fails.
+  void initErrorPrint(Print* pr);
+  /**Print message and error details and halt after SdFat::init() fails.
    *
    * \param[in] msg Message to print.
    */
   void initErrorPrint(char const *msg) {
     initErrorPrint(&Serial, msg);
   }
-  /**Print message and error details and halt after begin() fails.
+  /**Print message and error details and halt after SdFatBase::init() fails.
    *
    * \param[in] pr Print destination.
    * \param[in] msg Message to print.
    */
-  void initErrorPrint(Print* pr, char const *msg) {
-    pr->println(msg);
-    initErrorPrint(pr);
-  }
+  void initErrorPrint(Print* pr, char const *msg);
 #if defined(ARDUINO) || defined(DOXYGEN)
   /** %Print msg, any SD error code, and halt.
    *
@@ -228,11 +199,7 @@ class SdFileSystem : public FatFileSystem {
    * \param[in] pr Print destination.
    * \param[in] msg Message to print.
    */
-  void errorHalt(Print* pr, const __FlashStringHelper* msg) {
-    errorPrint(pr, msg);
-    SysCall::halt();
-  }
-
+  void errorHalt(Print* pr, const __FlashStringHelper* msg);
   /** %Print msg, any SD error code.
    *
    * \param[in] msg Message to print.
@@ -245,260 +212,149 @@ class SdFileSystem : public FatFileSystem {
    * \param[in] pr Print destination.
    * \param[in] msg Message to print.
    */
-  void errorPrint(Print* pr, const __FlashStringHelper* msg) {
-    pr->print(F("error: "));
-    pr->println(msg);
-    errorPrint(pr);
-  }
-  /**Print message, error details, and halt after begin() fails.
+  void errorPrint(Print* pr, const __FlashStringHelper* msg);
+  /**Print message, error details, and halt after SdFat::init() fails.
     *
     * \param[in] msg Message to print.
     */
   void initErrorHalt(const __FlashStringHelper* msg) {
     initErrorHalt(&Serial, msg);
   }
-  /**Print message, error details, and halt after begin() fails.
+  /**Print message, error details, and halt after SdFatBase::init() fails.
    * \param[in] pr Print device for message.
    * \param[in] msg Message to print.
    */
-  void initErrorHalt(Print* pr, const __FlashStringHelper* msg) {
-    pr->println(msg);
-    initErrorHalt(pr);
-  }
-  /**Print message and error details and halt after begin() fails.
+  void initErrorHalt(Print* pr, const __FlashStringHelper* msg);
+  /**Print message and error details and halt after SdFat::init() fails.
    *
    * \param[in] msg Message to print.
    */
   void initErrorPrint(const __FlashStringHelper* msg) {
     initErrorPrint(&Serial, msg);
   }
-  /**Print message and error details and halt after begin() fails.
+  /**Print message and error details and halt after SdFatBase::init() fails.
    *
    * \param[in] pr Print destination.
    * \param[in] msg Message to print.
    */
-  void initErrorPrint(Print* pr, const __FlashStringHelper* msg) {
-    pr->println(msg);
-    initErrorPrint(pr);
-  }
+  void initErrorPrint(Print* pr, const __FlashStringHelper* msg);
 #endif  // defined(ARDUINO) || defined(DOXYGEN)
-  /** \return The card error code */
-  uint8_t cardErrorCode() {
-        return m_card.errorCode();
-  }
-  /** \return the card error data */
-  uint32_t cardErrorData() {
-    return m_card.errorData();
-  }
 
- protected:
-  SdDriverClass m_card;
+ private:
+  uint8_t cardErrorCode() {
+    return m_sdCard.errorCode();
+  }
+  uint8_t cardErrorData() {
+    return m_sdCard.errorData();
+  }
+  bool readBlock(uint32_t block, uint8_t* dst) {
+    return m_sdCard.readBlock(block, dst);
+  }
+  bool writeBlock(uint32_t block, const uint8_t* src) {
+    return m_sdCard.writeBlock(block, src);
+  }
+  bool readBlocks(uint32_t block, uint8_t* dst, size_t n) {
+    return m_sdCard.readBlocks(block, dst, n);
+  }
+  bool writeBlocks(uint32_t block, const uint8_t* src, size_t n) {
+    return m_sdCard.writeBlocks(block, src, n);
+  }
+  SdSpiCard m_sdCard;
 };
 //==============================================================================
 /**
  * \class SdFat
  * \brief Main file system class for %SdFat library.
  */
-class SdFat : public SdFileSystem<SdSpiCard> {
+class SdFat : public SdFatBase {
  public:
-#if IMPLEMENT_SPI_PORT_SELECTION || defined(DOXYGEN)
+#if IMPLEMENT_SPI_INTERFACE_SELECTION
   SdFat() {
-    m_spi.setPort(0);
+    m_spi.setSpiIf(0);
   }
-  /** Constructor with SPI port selection.
-   * \param[in] spiPort SPI port number.
-   */
-  explicit SdFat(uint8_t spiPort) {
-    m_spi.setPort(spiPort);
+  explicit SdFat(uint8_t spiIf) {
+    m_spi.setSpiIf(spiIf < SPI_INTERFACE_COUNT ? spiIf : 0);
   }
-#endif  // IMPLEMENT_SPI_PORT_SELECTION
+#endif  // IMPLEMENT_SPI_INTERFACE_SELECTION
+
   /** Initialize SD card and file system.
    *
    * \param[in] csPin SD card chip select pin.
-   * \param[in] spiSettings SPI speed, mode, and bit order.
+   * \param[in] divisor SPI divisor.
    * \return true for success else false.
    */
-  bool begin(uint8_t csPin = SS, SPISettings spiSettings = SPI_FULL_SPEED) {
-    return m_card.begin(&m_spi, csPin, spiSettings) &&
-           SdFileSystem::begin();
+  bool begin(uint8_t csPin = SS, uint8_t divisor = 2) {
+    return SdFatBase::begin(&m_spi, csPin, divisor);
   }
-  /** Initialize SD card for diagnostic use only.
-   *
+  /** Diagnostic call to initialize SD card - use for diagnostic purposes only.
    * \param[in] csPin SD card chip select pin.
-   * \param[in] settings SPI speed, mode, and bit order.
+   * \param[in] divisor SPI divisor.
    * \return true for success else false.
    */
-  bool cardBegin(uint8_t csPin = SS, SPISettings settings = SPI_FULL_SPEED) {
-    return m_card.begin(&m_spi, csPin, settings);
-  }
-  /** Initialize file system for diagnostic use only.
-   * \return true for success else false.
-   */
-  bool fsBegin() {
-    return FatFileSystem::begin(card());
+  bool cardBegin(uint8_t csPin = SS, uint8_t divisor = 2) {
+    return card()->begin(&m_spi, csPin, divisor);
   }
 
  private:
-  SdFatSpiDriver m_spi;
+  SpiDefault_t m_spi;
 };
 //==============================================================================
-#if ENABLE_SDIO_CLASS || defined(DOXYGEN)
+#if SD_SPI_CONFIGURATION >= 3 || defined(DOXYGEN)
 /**
- * \class SdFatSdio
- * \brief SdFat class using SDIO.
+ * \class SdFatLibSpi
+ * \brief SdFat class using the standard Arduino SPI library.
  */
-class SdFatSdio : public SdFileSystem<SdioCard> {
+class SdFatLibSpi: public SdFatBase {
  public:
   /** Initialize SD card and file system.
+  *
+  * \param[in] csPin SD card chip select pin.
+  * \param[in] divisor SPI divisor.
+  * \return true for success else false.
+  */
+  bool begin(uint8_t csPin = SS, uint8_t divisor = 2) {
+    return SdFatBase::begin(&m_spi, csPin, divisor);
+  }
+  /** Diagnostic call to initialize SD card - use for diagnostic purposes only.
+   * \param[in] csPin SD card chip select pin.
+   * \param[in] divisor SPI divisor.
    * \return true for success else false.
    */
-  bool begin() {
-    return m_card.begin() && SdFileSystem::begin();
+  bool cardBegin(uint8_t csPin = SS, uint8_t divisor = 2) {
+    return card()->begin(&m_spi, csPin, divisor);
   }
-  /** Initialize SD card for diagnostic use only.
-   *
-   * \return true for success else false.
-   */
-  bool cardBegin() {
-    return m_card.begin();
-  }
-  /** Initialize file system for diagnostic use only.
-   * \return true for success else false.
-   */
-  bool fsBegin() {
-    return SdFileSystem::begin();
-  }
+
+ private:
+  SdSpiLib m_spi;
 };
-#if ENABLE_SDIOEX_CLASS || defined(DOXYGEN)
-//-----------------------------------------------------------------------------
-/**
- * \class SdFatSdioEX
- * \brief SdFat class using SDIO.
- */
-class SdFatSdioEX : public SdFileSystem<SdioCardEX> {
- public:
-  /** Initialize SD card and file system.
-   * \return true for success else false.
-   */
-  bool begin() {
-    return m_card.begin() && SdFileSystem::begin();
-  }
-  /** \return Pointer to SD card object */
-  SdioCardEX* card() {
-    return &m_card;
-  }
-  /** Initialize SD card for diagnostic use only.
-   *
-   * \return true for success else false.
-   */
-  bool cardBegin() {
-    return m_card.begin();
-  }
-  /** Initialize file system for diagnostic use only.
-   * \return true for success else false.
-   */
-  bool fsBegin() {
-    return SdFileSystem::begin();
-  }
-};
-#endif  // ENABLE_SDIOEX_CLASS || defined(DOXYGEN)
-#endif  // ENABLE_SDIO_CLASS || defined(DOXYGEN)
-//=============================================================================
-#if ENABLE_SOFTWARE_SPI_CLASS || defined(DOXYGEN)
+//==============================================================================
 /**
  * \class SdFatSoftSpi
  * \brief SdFat class using software SPI.
  */
 template<uint8_t MisoPin, uint8_t MosiPin, uint8_t SckPin>
-class SdFatSoftSpi : public SdFileSystem<SdSpiCard>  {
+class SdFatSoftSpi : public SdFatBase {
  public:
   /** Initialize SD card and file system.
    *
    * \param[in] csPin SD card chip select pin.
-   * \param[in] spiSettings ignored for software SPI..
+   * \param[in] divisor SPI divisor.
    * \return true for success else false.
    */
-  bool begin(uint8_t csPin = SS, SPISettings spiSettings = SPI_FULL_SPEED) {
-    return m_card.begin(&m_spi, csPin, spiSettings) &&
-           SdFileSystem::begin();
+  bool begin(uint8_t csPin = SS, uint8_t divisor = 2) {
+    return SdFatBase::begin(&m_spi, csPin, divisor);
   }
- private:
-  SdSpiSoftDriver<MisoPin, MosiPin, SckPin> m_spi;
-};
-#endif  // #if ENABLE_SOFTWARE_SPI_CLASS || defined(DOXYGEN)
-//==============================================================================
-#if ENABLE_EXTENDED_TRANSFER_CLASS || defined(DOXYGEN)
-/**
- * \class SdFatEX
- * \brief SdFat class with extended SD I/O.
- */
-class SdFatEX : public SdFileSystem<SdSpiCardEX> {
- public:
-#if IMPLEMENT_SPI_PORT_SELECTION  || defined(DOXYGEN)
-  SdFatEX() {
-    m_spi.setPort(0);
-  }
-  /** Constructor with SPI port selection.
-   * \param[in] spiPort SPI port number.
+  /** Diagnostic call to initialize SD card - use for diagnostic purposes only.
+   * \param[in] csPin SD card chip select pin.
+   * \param[in] divisor SPI divisor.
+   * \return true for success else false.
    */
-  explicit SdFatEX(uint8_t spiPort) {
-    m_spi.setPort(spiPort);
-  }
-#endif  // IMPLEMENT_SPI_PORT_SELECTION
-  /** Initialize SD card and file system.
-  *
-  * \param[in] csPin SD card chip select pin.
-  * \param[in] spiSettings SPI speed, mode, and bit order.
-  * \return true for success else false.
-  */
-  bool begin(uint8_t csPin = SS, SPISettings spiSettings = SPI_FULL_SPEED) {
-    return m_card.begin(&m_spi, csPin, spiSettings) &&
-           SdFileSystem::begin();
+  bool cardBegin(uint8_t csPin = SS, uint8_t divisor = 2) {
+    return card()->begin(&m_spi, csPin, divisor);
   }
 
  private:
-  SdFatSpiDriver m_spi;
+  SdSpiSoft<MisoPin, MosiPin, SckPin> m_spi;
 };
-//==============================================================================
-#if ENABLE_SOFTWARE_SPI_CLASS || defined(DOXYGEN)
-/**
- * \class SdFatSoftSpiEX
- * \brief SdFat class using software SPI and extended SD I/O.
- */
-template<uint8_t MisoPin, uint8_t MosiPin, uint8_t SckPin>
-class SdFatSoftSpiEX : public SdFileSystem<SdSpiCardEX>  {
- public:
-  /** Initialize SD card and file system.
-   *
-   * \param[in] csPin SD card chip select pin.
-   * \param[in] spiSettings ignored for software SPI.
-   * \return true for success else false.
-   */
-  bool begin(uint8_t csPin = SS, SPISettings spiSettings = SPI_FULL_SPEED) {
-    return m_card.begin(&m_spi, csPin, spiSettings) &&
-           SdFileSystem::begin();
-  }
- private:
-  SdSpiSoftDriver<MisoPin, MosiPin, SckPin> m_spi;
-};
-#endif  // #if ENABLE_SOFTWARE_SPI_CLASS || defined(DOXYGEN)
-#endif  // ENABLE_EXTENDED_TRANSFER_CLASS || defined(DOXYGEN)
-//=============================================================================
-/**
- * \class Sd2Card
- * \brief Raw access to SD and SDHC card using default SPI library.
- */
-class Sd2Card : public SdSpiCard {
- public:
-  /** Initialize the SD card.
-   * \param[in] csPin SD chip select pin.
-   * \param[in] settings SPI speed, mode, and bit order.
-   * \return true for success else false.
-   */
-  bool begin(uint8_t csPin = SS, SPISettings settings = SD_SCK_MHZ(50)) {
-    return SdSpiCard::begin(&m_spi, csPin, settings);
-  }
- private:
-  SdFatSpiDriver m_spi;
-};
+#endif  /// SD_SPI_CONFIGURATION >= 3 || defined(DOXYGEN)
 #endif  // SdFat_h

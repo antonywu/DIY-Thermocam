@@ -111,22 +111,57 @@ void displayWarmup() {
 }
 
 /* Display the minimum and maximum point on the screen */
-void displayMinMaxPoint(uint16_t pixelIndex, const char *str)
+void displayMinMaxPoint(bool min)
 {
-	uint16_t xpos, ypos;
+	int16_t xpos, ypos;
+
 	//Calculate x and y position
-	calculateMinMaxPoint(&xpos, &ypos, pixelIndex);
+	if(min)
+		calculatePointPos(&xpos, &ypos, minTempPos);
+	else
+		calculatePointPos(&xpos, &ypos, maxTempPos);
 
 	//Draw the marker
 	display_drawLine(xpos, ypos, xpos, ypos);
 
-	//Draw the string
-	xpos += 4;
-	if (xpos >= 310)
-		xpos -= 10;
-	if (ypos > 230)
-		ypos = 230;
-	display_print(str, xpos, ypos);
+	//Warmup completed, show absolute temp
+	if (calStatus != cal_warmup)
+	{
+		//Calc x position for the text
+		xpos -= 20;
+		if (xpos < 0)
+			xpos = 0;
+		if (xpos > 279)
+			xpos = 279;
+
+		//Calc y position for the text
+		ypos += 15;
+		if (ypos > 229)
+			ypos = 229;
+
+		//Show min or max value as absolute temperature
+		if(min)
+			display_printNumF(calFunction(minTempVal), 2, xpos, ypos);
+		else
+			display_printNumF(calFunction(maxTempVal), 2, xpos, ypos);
+	}
+	
+	//Warmup, show C / H
+	else
+	{
+		//Calc x and y position
+		xpos += 4;
+		if (xpos >= 310)
+			xpos -= 10;
+		if (ypos > 230)
+			ypos = 230;
+
+		//Show min or max value as symbol
+		if (min)
+			display_print('C', xpos, ypos);
+		else
+			display_print('H', xpos, ypos);
+	}
 }
 
 /* Display free space on screen*/
@@ -162,7 +197,7 @@ void displayInfos() {
 	changeTextColor();
 	//Set font and background
 	display_setBackColor(VGA_TRANSPARENT);
-	
+
 	//For Teensy 3.6, set small font
 	if (teensyVersion == teensyVersion_new)
 		display_setFont(smallFont);
@@ -197,9 +232,9 @@ void displayInfos() {
 
 	//Show the minimum / maximum points
 	if (minMaxPoints & minMaxPoints_min)
-		displayMinMaxPoint(minTempPos, (const char *)"C");
+		displayMinMaxPoint(true);
 	if (minMaxPoints & minMaxPoints_max)
-		displayMinMaxPoint(maxTempPos, (const char *)"H");
+		displayMinMaxPoint(false);
 
 	//Show the spot in the middle
 	if (spotEnabled)

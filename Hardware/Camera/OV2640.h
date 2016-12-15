@@ -387,14 +387,18 @@ void ov2640_transfer(uint8_t * jpegData, boolean stream)
 	boolean is_header = 0;
 	while (1)
 	{
+		//Save last byte
 		temp_last = temp;
+		//Get new byte over SPI
 		temp = SPI.transfer(0x00);
+
 		//Normal bytestream
 		if (is_header == 1)
 		{
 			jpegData[counter] = temp;
 			counter++;
 		}
+
 		//Start byte sqeuence
 		else if ((temp == 0xD8) & (temp_last == 0xFF))
 		{
@@ -403,6 +407,17 @@ void ov2640_transfer(uint8_t * jpegData, boolean stream)
 			jpegData[1] = temp;
 			counter = 2;
 		}
+
+		//If rotation enabled and saving / sending, include EXIF header
+		if ((counter == 20) && (!stream) && (rotationEnabled))
+		{
+			for (uint8_t i = 0; i < 100; i++)
+			{
+				jpegData[counter + i] = exifHeader_rotated[i];
+			}
+			counter += 100;
+		}
+
 		//End byte sequence
 		if ((temp == 0xD9) && (temp_last == 0xFF))
 			break;

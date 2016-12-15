@@ -52,7 +52,7 @@ void startAltClockline(boolean sdStart) {
 	CORE_PIN13_CONFIG = PORT_PCR_MUX(1);
 	CORE_PIN14_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
 	if (sdStart)
-		beginSD();
+		sd.begin(pin_sd_cs, SPI_FULL_SPEED);
 }
 
 /* Switch the SPI0 clockline back to pin 13 */
@@ -63,19 +63,11 @@ void endAltClockline() {
 
 /* Checks if the sd card is inserted for ThermocamV4 */
 boolean checkSDCard() {
-	//ThermocamV4 or DIY-Thermocam V2 - init SD card
+	//ThermocamV4 or DIY-Thermocam V2 - try init SD card
 	if ((mlx90614Version == mlx90614Version_old) ||
-		(teensyVersion == teensyVersion_new)) {
-		startAltClockline();
-		//Try to init
-		if (!beginSD()) {
-			//Go back 
-			endAltClockline();
-			return false;
-		}
-		endAltClockline();
-		return true;
-	}
+		(teensyVersion == teensyVersion_new))
+		return beginSD();
+
 	//All other do not need the check
 	return true;
 }
@@ -164,7 +156,7 @@ void checkFWUpgrade() {
 				EEPROM.write(eeprom_adjComb3Set, 0);
 			}
 			//Show upgrade completed message
-			showFullMessage((char*)"FW update completed, pls restart!");
+			showFullMessage((char*)"Update completed, restart device!");
 			//Set EEPROM firmware version to current one
 			EEPROM.write(eeprom_fwVersion, fwVersion);
 			//Wait for hard-reset
@@ -172,7 +164,7 @@ void checkFWUpgrade() {
 		}
 
 		//Show downgrade completed message
-		showFullMessage((char*)"FW downgrade completed, pls restart!");
+		showFullMessage((char*)"Downgrade completed, restart device!");
 		//Set EEPROM firmware version to current one
 		EEPROM.write(eeprom_fwVersion, fwVersion);
 		//Wait for hard-reset
@@ -533,6 +525,7 @@ time_t getTeensy3Time()
 void initRTC() {
 	//Get the time from the Teensy
 	setSyncProvider(getTeensy3Time);
+
 	//Check if year is lower than 2016
 	if ((year() < 2016) && (EEPROM.read(eeprom_firstStart) == eeprom_setValue)) {
 		showFullMessage((char*) "Empty coin cell battery, recharge!");
@@ -564,7 +557,7 @@ void toggleLaser(bool message) {
 	{
 		//Show a message
 		if (message) {
-			showFullMessage((char*) "Your HW does not have a laser!", true);
+			showFullMessage((char*) "Only works on the DIY-Thermocam V1", true);
 			delay(1000);
 		}
 		return;
@@ -650,8 +643,6 @@ void initHardware()
 	mlx90614_init();
 	//Disable I2C timeout
 	Wire.setDefaultTimeout(0);
-	//Init SD card
-	initSD();
 	//Init screen off timer
 	initScreenOffTimer();
 	//Init the realtime clock
@@ -660,4 +651,6 @@ void initHardware()
 	checkBattery(true);
 	//Init the buffer(s)
 	initBuffer();
+	//Init SD card
+	initSD();
 }

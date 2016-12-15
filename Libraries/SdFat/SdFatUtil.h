@@ -17,34 +17,19 @@
  * along with the Arduino SdFat Library.  If not, see
  * <http://www.gnu.org/licenses/>.
  */
-#ifndef MinimumSerial_h
-#define MinimumSerial_h
-#include "SystemInclude.h"
-//==============================================================================
+#ifndef SdFatUtil_h
+#define SdFatUtil_h
 /**
- * \class MinimumSerial
- * \brief mini serial class for the %SdFat library.
+ * \file
+ * \brief Useful utility functions.
  */
-class MinimumSerial : public Print {
- public:
-  /**
-   * Set baud rate for serial port zero and enable in non interrupt mode.
-   * Do not call this function if you use another serial library.
-   * \param[in] baud rate
+#include "SdFat.h"
+
+namespace SdFatUtil {
+  /** Amount of free RAM
+   * \return The number of free bytes.
    */
-  void begin(uint32_t baud);
-  /**
-   *  Unbuffered read
-   *  \return -1 if no character is available or an available character.
-   */
-  int read();
-  /**
-   * Unbuffered write
-   *
-   * \param[in] b byte to write.
-   * \return 1
-   */
-  size_t write(uint8_t b);
-  using Print::write;
-};
-#endif  // MinimumSerial_h
+  int FreeRam();
+}  // namespace SdFatUtil
+using namespace SdFatUtil;  // NOLINT
+#endif  // #define SdFatUtil_h

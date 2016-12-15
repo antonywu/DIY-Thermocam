@@ -112,46 +112,62 @@ void createBMPFile(char* filename) {
 	sdFile.write((uint8_t*)bmp_header_large, 66);
 }
 
-/* Creates a jpg file for the visual image */
-void createJPGFile(char* filename, char* dirname) {
-	//Begin SD Transmission
-	startAltClockline();
+/* Creates a JPEG file for the visual image */
+void createJPEGFile(char* dirname) {
 	//Go into the video folder if required
 	if (dirname != NULL)
 		sd.chdir(dirname);
-	//File extension and open
-	strcpy(&filename[14], ".JPG");
-	sdFile.open(filename, O_RDWR | O_CREAT | O_AT_END);
-	//Switch clockline
-	endAltClockline();
+
+	//Create JPEG file
+	strcpy(&saveFilename[14], ".JPG");
+	sdFile.open(saveFilename, O_RDWR | O_CREAT | O_AT_END);
 }
 
 /* Creates a folder for the video capture */
 void createVideoFolder(char* dirname) {
+	//Start alternative clock line
 	startAltClockline();
+
 	//Build the dir from the current time & date
 	createSDName(dirname, true);
+
 	//Create folder
 	sd.mkdir(dirname);
+
 	//Go into that folder
 	sd.chdir(dirname);
+
+	//End alternative clock line
 	endAltClockline();
 }
 
-/* Checks the requirements for image save */
-void checkImageSave() {
+/* Start the image save procedure */
+void imgSaveStart() {
 	//ThermocamV4 or DIY-Thermocam V2 - check SD card
 	if (!checkSDCard()) {
-		showTransMessage((char*) "Waiting for card..");
+		//Show wait message
+		showFullMessage((char*) "Waiting for SD card..");
+
+		//Wait until card is inserted
 		while (!checkSDCard());
+
+		//Redraw the last screen content
+		displayBuffer();
 	}
 
 	//Check if there is at least 1MB of space left
 	if (getSDSpace() < 1000) {
-		showTransMessage((char*) "SD card full!");
+		//Show message
+		showFullMessage((char*) "The SD card is full!");
+		delay(1000);
+
+		//Disable and return
 		imgSave = imgSave_disabled;
 		return;
 	}
+
+	//Build save filename from the current time & date
+	createSDName(saveFilename);
 
 	//Set text color
 	changeTextColor();
@@ -163,20 +179,34 @@ void checkImageSave() {
 	//Capture visual image if enabled and saving
 	if (visualEnabled && (displayMode == displayMode_thermal) && (checkDiagnostic(diag_camera)))
 	{
-		display_print((char*) "Hold cam steady..", CENTER, 70);
+		//Show hold steady message
+		if (spotEnabled)
+			display_print((char*) "HOLD STEADY", CENTER, 70);
+		else
+			display_print((char*) "HOLD STEADY", CENTER, 90);
+
+		//Wait a second
 		delay(1000);
+		//Capture visual frame
 		camera_capture();
-		display_print((char*) "Saving..", CENTER, 160);
+
+		//Show save message
+		if (spotEnabled)
+			display_print((char*) "SAVING", CENTER, 170);
+		else
+			display_print((char*) "SAVING", CENTER, 130);
+
+		//Save visual image in full-res
+		camera_get(camera_save);
 	}
 
 	//Show save message
-	else if (spotEnabled)
-		display_print((char*) "Saving..", CENTER, 70);
-	else
-		display_print((char*) "Saving..", CENTER, 110);
-
-	//Build save filename from the current time & date
-	createSDName(saveFilename);
+	else {
+		if (spotEnabled)
+			display_print((char*) "SAVING", CENTER, 70);
+		else
+			display_print((char*) "SAVING", CENTER, 110);
+	}
 
 	//Set marker to create image
 	imgSave = imgSave_create;
@@ -267,7 +297,7 @@ void processVideoFrames(int framesCaptured, char* dirname) {
 
 		//Find min / max position
 		if (minMaxPoints != minMaxPoints_disabled)
-			findMinMaxPositions();
+			refreshMinMax();
 
 		//Convert lepton data to RGB565 colors
 		convertColors(true);
@@ -292,11 +322,13 @@ void saveRawData(bool isImage, char* name, uint16_t framesCaptured) {
 
 	//Start SD
 	startAltClockline(true);
+
 	//Create filename for image
 	if (isImage) {
 		strcpy(&name[14], ".DAT");
 		sdFile.open(name, O_RDWR | O_CREAT | O_AT_END);
 	}
+
 	//Create filename for video frame
 	else {
 		char filename[] = "00000.DAT";
@@ -375,19 +407,11 @@ void saveRawData(bool isImage, char* name, uint16_t framesCaptured) {
 	endAltClockline();
 }
 
-/* Saves additional images to the internal storage */
-void saveImages() {
+/* End the image save procedure */
+void imgSaveEnd() {
 	//Save Bitmap image if activated or in visual / combined mode
 	if (convertEnabled || (displayMode == displayMode_visual) || (displayMode == displayMode_combined))
 		saveBuffer(saveFilename);
-
-	//Save visual image in thermal mode
-	if (visualEnabled && (displayMode == displayMode_thermal) && (checkDiagnostic(diag_camera))) {
-		//Create JPEG file
-		createJPGFile(saveFilename);
-		//Save visual image in full-res
-		camera_get(camera_save);
-	}
 
 	//Refresh free space
 	refreshFreeSpace();
@@ -397,28 +421,25 @@ void saveImages() {
 }
 
 /* Saves the content of the screen buffer to the sd card */
-void saveBuffer(char* filename, char* dirname) {
+void saveBuffer(char* filename) {
 	unsigned short pixel;
-	//Begin SD Transmission
-	startAltClockline(true);
 
-	//Switch to video folder if video
-	if (dirname != NULL)
-		sd.chdir(dirname);
+	//Otherwise switch to clockline
+	startAltClockline();
 
 	//Create file
 	createBMPFile(filename);
 
-	//Teensy 3.1/3.2
+	//Teensy 3.1/3.2 - Save the 160x120 array as 640x480
 	if (teensyVersion == teensyVersion_old)
 	{
 		//Allocate space for sd buffer
 		uint8_t* sdBuffer = (uint8_t*)calloc(320, sizeof(uint8_t));
 		//Save 640x480 pixels
-		for (uint8_t y = 0; y < 120; y++) {
+		for (int16_t y = 119; y >= 0; y--) {
 			//Write them into the sd buffer
 			for (uint8_t x = 0; x < 160; x++) {
-				pixel = smallBuffer[((119 - y) * 160) + x];
+				pixel = smallBuffer[(y * 160) + x];
 				sdBuffer[x * 2] = pixel & 0x00FF;
 				sdBuffer[(x * 2) + 1] = (pixel & 0xFF00) >> 8;
 			}
@@ -436,16 +457,16 @@ void saveBuffer(char* filename, char* dirname) {
 		free(sdBuffer);
 	}
 
-	//Teensy 3.6
+	//Teensy 3.6 - Save the 320x240 array as 640x480
 	else
 	{
 		//Allocate space for sd buffer
 		uint8_t* sdBuffer = (uint8_t*)calloc(1280, sizeof(uint8_t));
 		//Save 640x480 pixels
-		for (byte y = 0; y < 240; y++) {
+		for (int16_t y = 239; y >= 0; y--) {
 			//Write them into the sd buffer
 			for (uint16_t x = 0; x < 320; x++) {
-				pixel = bigBuffer[((239 - y) * 320) + x];
+				pixel = bigBuffer[(y * 320) + x];
 				sdBuffer[x * 4] = pixel & 0x00FF;
 				sdBuffer[(x * 4) + 1] = (pixel & 0xFF00) >> 8;
 				sdBuffer[(x * 4) + 2] = pixel & 0x00FF;

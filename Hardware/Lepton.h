@@ -276,6 +276,7 @@ void lepton_init() {
 	//Set the compensation value to zero
 	calComp = 0;
 
+
 	//Activate auto mode
 	autoMode = true;
 	//Deactivate limits Locked

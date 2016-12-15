@@ -42,6 +42,7 @@ uint8_t* camera_jpegData;
 //The current camera resolution
 byte camera_resolution;
 
+
 /* Methods */
 
 /* Capture an image on the camera */
@@ -125,7 +126,7 @@ unsigned int camera_decompOutNormal(JDEC * jd, void * bitmap, JRECT * rect)
 	unsigned short * bmp = (unsigned short *)bitmap;
 	unsigned short x, y;
 	uint32_t count = 0;
-	int imagepos;
+	uint32_t imagepos;
 
 	//Go through the image vertically
 	for (y = rect->top; y <= rect->bottom; y++) {
@@ -141,17 +142,25 @@ unsigned int camera_decompOutNormal(JDEC * jd, void * bitmap, JRECT * rect)
 
 					//Get the image position
 					imagepos = x + (y * 320);
+
 					//Do the visual alignment
 					imagepos -= 5 * adjCombRight;
 					imagepos += 5 * adjCombLeft;
 					imagepos -= 5 * adjCombDown * 320;
 					imagepos += 5 * adjCombUp * 320;
+
 					//Do not use zero
 					if (bmp[count] == 0)
 						bmp[count] = 1;
-					//Set pixel
-					bigBuffer[imagepos] = bmp[count];
+
+					//Write to image buffer, rotated
+					if (rotationEnabled)
+						bigBuffer[76799 - imagepos] = bmp[count];
+					//Write to image buffer, normal
+					else
+						bigBuffer[imagepos] = bmp[count];;
 				}
+
 				//Raise counter
 				count++;
 			}
@@ -201,8 +210,12 @@ unsigned int camera_decompOutCombined(JDEC * jd, void * bitmap, JRECT * rect) {
 						greenV = (pixel & 0x7E0) >> 3;
 						blueV = (pixel & 0x1F) << 3;
 
-						//Get the thermal image color
-						pixel = smallBuffer[imagepos];
+						//Get the thermal image color, rotated
+						if(rotationEnabled)
+							pixel = smallBuffer[19199 - imagepos];
+						//Get the thermal image color, normal
+						else
+							pixel = smallBuffer[imagepos];
 						//And extract the RGB values out of it
 						redT = (pixel & 0xF800) >> 8;
 						greenT = (pixel & 0x7E0) >> 3;
@@ -223,8 +236,12 @@ unsigned int camera_decompOutCombined(JDEC * jd, void * bitmap, JRECT * rect) {
 					else
 						pixel = bmp[count++];
 
-					//Write to image buffer
-					smallBuffer[imagepos] = pixel;
+					//Write to image buffer, rotated
+					if (rotationEnabled)
+						smallBuffer[19199 - imagepos] = pixel;
+					//Write to image buffer, normal
+					else
+						smallBuffer[imagepos] = pixel;
 				}
 				//Raise counter if it is not inside the image
 				else
@@ -247,17 +264,18 @@ unsigned int camera_decompIn(JDEC * jd, byte* buff, unsigned int ndata) {
 }
 
 /* Transfer, decompress or save the visual image */
-void camera_get(byte mode)
+void camera_get(byte mode, char* dirname = NULL)
 {
 	uint32_t jpegLen;
 
-	//Get length from Arducam
+	//Get length from Arducam for streaming
 	if (teensyVersion == teensyVersion_new) {
 		//Wait for image to be there
 		while (!ov2640_getBit(ARDUCHIP_TRIG, CAP_DONE_MASK));
 		//Get JPEG length
 		jpegLen = ov2640_readFifoLength();
 	}
+
 	//Get length from PTC-06 or PTC-08
 	else
 		jpegLen = vc0706_frameLength();
@@ -265,61 +283,116 @@ void camera_get(byte mode)
 	//For serial transfer, send frame length
 	if (mode == camera_serial)
 	{
-		Serial.write((jpegLen & 0xFF00) >> 8);
-		Serial.write(jpegLen & 0x00FF);
+		//When rotation is enabled or using the ThermocamV4, send EXIF
+		if((rotationEnabled && (mlx90614Version == mlx90614Version_new)) || (mlx90614Version == mlx90614Version_old))
+		{
+			Serial.write(((jpegLen + 100) & 0xFF00) >> 8);
+			Serial.write((jpegLen + 100) & 0x00FF);
+		}
+		//Send JPEG Bytestream only
+		else
+		{
+			Serial.write((jpegLen & 0xFF00) >> 8);
+			Serial.write(jpegLen & 0x00FF);
+		}
+
 	}
 
-	//For saving or serial on old HW, set pointer to NULL
-	if ((mode != camera_stream) && (teensyVersion == teensyVersion_old))
-		camera_jpegData = NULL;
-	//For saving or serial on new HW, set pointer to big buffer
-	else if ((mode != camera_stream) && (teensyVersion == teensyVersion_new))
-		camera_jpegData = (uint8_t*)bigBuffer;
-	//For decompression or saving on new HW, define space
+	//Buffer for Teensy 3.1 / 3.2
+	if(teensyVersion == teensyVersion_old)
+	{
+		//When streaming, allocate bytes
+		if (mode == camera_stream)
+			camera_jpegData = (uint8_t*)malloc(jpegLen);
+		//For saving and serial, do write directly
+		else
+			camera_jpegData = NULL;
+	}
+	//Buffer for Teensy 3.6
 	else
-		camera_jpegData = (uint8_t*)malloc(jpegLen);
+	{
+		//If rotated and not streaming, add EXIF header
+		if ((rotationEnabled) && (mode != camera_stream))
+			camera_jpegData = (uint8_t*)malloc(jpegLen + 100);
+		//Otherwise allocate byte for JPEG data only
+		else
+			camera_jpegData = (uint8_t*)malloc(jpegLen);
+	}
 
 	//Arducam
 	if (teensyVersion == teensyVersion_new) {
 		//Stream
 		if (mode == camera_stream)
 			ov2640_transfer(camera_jpegData, 1);
+
 		//Save
 		else if (mode == camera_save) {
+			//Transfer from camera
 			ov2640_transfer(camera_jpegData, 0);
+
+			//Start SD transmission
 			startAltClockline();
-			sdFile.write(camera_jpegData, jpegLen);
+
+			//Create JPEG file
+			createJPEGFile(dirname);
+
+			//Write to SD file, EXIF included if rotated
+			if (rotationEnabled)
+				sdFile.write(camera_jpegData, jpegLen + 100);
+			else
+				sdFile.write(camera_jpegData, jpegLen);
+			
+			//Close file
 			sdFile.close();
 			endAltClockline();
+
+			//Free buffer
+			free(camera_jpegData);
 		}
+
 		//Serial transfer
 		else if (mode == camera_serial)
 		{
+			//Transfer from camera
 			ov2640_transfer(camera_jpegData, 0);
-			Serial.write(camera_jpegData, jpegLen);
+
+			//Send over serial port, EXIF included if rotated
+			if(rotationEnabled)
+				Serial.write(camera_jpegData, jpegLen + 100);
+			else
+				Serial.write(camera_jpegData, jpegLen);
+
+			//Free buffer
+			free(camera_jpegData);
 		}
 	}
 	//PTC-06 or PTC-08
 	else
-		vc0706_transfer(camera_jpegData, jpegLen, mode);
+		vc0706_transfer(camera_jpegData, jpegLen, mode, dirname);
 
 	//For streaming, decompress data and capture next frame
 	if (mode == camera_stream) {
-		//Send capture command
+		//Send capture command for next frame
 		camera_capture();
+
 		//Decompress the image if not saving
 		camera_iodev.jpic = camera_jpegData;
 		camera_iodev.jsize = jpegLen;
+
 		//the offset is zero
 		camera_iodev.joffset = 0;
+
 		//Prepare the image for convertion to RGB565
 		jd_prepare(&camera_jd, camera_decompIn, camera_jdwork, 3100, &camera_iodev);
+
 		//Decomp the image normally for Teensy 3.6
 		if (teensyVersion == teensyVersion_new)
 			jd_decomp(&camera_jd, camera_decompOutNormal, 0);
+
 		//Decomp with transparency for Teensy 3.1 / 3.2
 		else
 			jd_decomp(&camera_jd, camera_decompOutCombined, 0);
+
 		//Free the jpeg data array
 		free(camera_jpegData);
 	}
