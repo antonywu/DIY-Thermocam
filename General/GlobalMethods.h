@@ -35,7 +35,7 @@ void displayBuffer();
 void calibrationProcess(bool serial = false, bool firstStart = false);
 void readCalibration();
 void createVisCombImg();
-void getTemperatures();
+void lepton_getRawValues();
 void serialConnect();
 void showColorBar();
 void calculatePointPos(int16_t* xpos, int16_t* ypos, uint16_t pixelIndex);

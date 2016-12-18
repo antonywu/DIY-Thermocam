@@ -425,7 +425,7 @@ void saveBuffer(char* filename) {
 	unsigned short pixel;
 
 	//Otherwise switch to clockline
-	startAltClockline();
+	startAltClockline(true);
 
 	//Create file
 	createBMPFile(filename);

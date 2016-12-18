@@ -460,10 +460,7 @@ void liveModeInit() {
 
 	//For visual / combined, change cam res and take firts shot
 	if (displayMode != displayMode_thermal)
-	{
-		camera_changeRes(camera_resLow);
-		camera_capture();
-	}
+		camera_setStreamRes();
 
 	//Attach the Button interrupt
 	attachInterrupt(pin_button, buttonIRQ, RISING);

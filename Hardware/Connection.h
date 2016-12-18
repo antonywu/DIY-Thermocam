@@ -51,6 +51,7 @@
 #define CMD_GET_HWVERSION      138
 #define CMD_SET_ROTATION       139
 #define CMD_SET_CALIBRATION    140
+#define CMD_GET_HQRESOLUTION   141
 
 //Serial frame commands
 #define CMD_FRAME_RAW          150
@@ -125,8 +126,8 @@ void sendRawData(bool color = false) {
 /* Sends the framebuffer */
 void sendFramebuffer()
 {
-	//Teensy 3.1 / 3.2
-	if (teensyVersion == teensyVersion_old)
+	//160x120
+	if ((teensyVersion == teensyVersion_old) || (!hqRes))
 	{
 		for (int i = 0; i < 19200; i++)
 		{
@@ -135,7 +136,7 @@ void sendFramebuffer()
 		}
 	}
 
-	//Teensy 3.6
+	//320x240
 	else
 	{
 		for (uint32_t i = 0; i < 76800; i++)
@@ -503,6 +504,18 @@ void sendDiagnostic()
 	Serial.write(diagnostic);
 }
 
+/* Send the HQ Resolution information */
+void sendHQResolution()
+{
+	//For the DIY-Thermocam V1, send false
+	if (teensyVersion == teensyVersion_old)
+		Serial.write(0);
+	//For the DIY-Thermocam V2, send the hqRes byte
+	else
+		Serial.write(hqRes);
+}
+
+
 /* Set temperature points array */
 void setTempPoints()
 {
@@ -575,8 +588,8 @@ void sendDisplayFrame() {
 		else if (filterType == filterType_gaussian)
 			gaussianFilter();
 
-		//Teensy 3.6 - Resize to big buffer
-		if (teensyVersion == teensyVersion_new)
+		//Teensy 3.6 - Resize to big buffer when HQRes
+		if ((teensyVersion == teensyVersion_new) && (hqRes))
 			smallToBigBuffer();
 
 		//Convert lepton data to RGB565 colors
@@ -735,6 +748,10 @@ bool serialHandler() {
 	case CMD_GET_DIAGNOSTIC:
 		sendDiagnostic();
 		break;
+		//Get HQ resolution information
+	case CMD_GET_HQRESOLUTION:
+		sendHQResolution();
+		break;
 		//Send raw frame
 	case CMD_FRAME_RAW:
 		sendFrame(false);
@@ -868,7 +885,7 @@ void serialOutput() {
 				break;
 		//Get the temps
 		if(checkDiagnostic(diag_lep_data))
-			getTemperatures();
+			lepton_getRawValues();
 		//Compensate calibration with object temp
 		if(checkDiagnostic(diag_spot))
 			compensateCalib();
@@ -945,9 +962,9 @@ void serialConnect() {
 
 	//Change camera resolution back
 	if (displayMode == displayMode_thermal)
-		camera_changeRes(camera_resHigh);
+		camera_setSaveRes();
 	else
-		camera_changeRes(camera_resLow);
+		camera_setStreamRes();
 
 	//Turn laser off if enabled
 	if (laserEnabled)

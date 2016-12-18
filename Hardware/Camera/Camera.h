@@ -65,34 +65,55 @@ void camera_changeRes(byte camRes)
 	//According to camera resolution set
 	switch (camera_resolution)
 	{
-		//Low resolution for displaying
+		//Low resolution (160x120)
 	case camera_resLow:
-		//320x240 for Arducam
+		//Arducam
 		if (teensyVersion == teensyVersion_new)
-			ov2640_setJPEGSize(OV2640_320x240);
-		//160x120 for PTC-06 or PTC-08
+			ov2640_setJPEGSize(OV2640_160x120);
+		//PTC-06 or PTC-08
 		else
 			vc0706_changeCamRes(VC0706_160x120);
 		break;
-		//Middle resolution for serial
+		//Middle resolution (320x240)
 	case camera_resMiddle:
-		//320x240 for Arducam
+		// Arducam
 		if (teensyVersion == teensyVersion_new)
 			ov2640_setJPEGSize(OV2640_320x240);
-		//320x240 for PTC-06 or PTC-08
+		//PTC-06 or PTC-08
 		else
 			vc0706_changeCamRes(VC0706_320x240);
 		break;
-		//High resolution for saving
+		//High resolution (640x480)
 	case camera_resHigh:
-		//640x480 for Arducam
+		// Arducam
 		if (teensyVersion == teensyVersion_new)
 			ov2640_setJPEGSize(OV2640_640x480);
-		//640x480 for PTC-06 or PTC-08
+		//PTC-06 or PTC-08
 		else
 			vc0706_changeCamRes(VC0706_640x480);
 		break;
 	}
+}
+
+/* Set the resolution to saving */
+void camera_setSaveRes()
+{
+	camera_changeRes(camera_resHigh);
+}
+
+/* Set the resolution to streaming */
+void camera_setStreamRes()
+{
+	//Set camera resolution to low
+	if ((teensyVersion == teensyVersion_old) || (!hqRes))
+		camera_changeRes(camera_resLow);
+	
+	//Set to middle for HQ on Teensy 3.6
+	else
+		camera_changeRes(camera_resMiddle);
+
+	//Capture a new frame
+	camera_capture();
 }
 
 /* Init the camera module */
@@ -116,8 +137,8 @@ void camera_init(void)
 		return;
 	}
 
-	//Change resolution if init successful
-	camera_changeRes(camera_resHigh);
+	//Change resolution to save
+	camera_setSaveRes();
 }
 
 /* Normal output function for the JPEG Decompressor - Teensy 3.6 */
@@ -132,22 +153,22 @@ unsigned int camera_decompOutNormal(JDEC * jd, void * bitmap, JRECT * rect)
 	for (y = rect->top; y <= rect->bottom; y++) {
 
 		//Check if we draw inside the screen on y position
-		if (((y + (5 * adjCombUp) <= 239) && (y - (5 * adjCombDown) >= 0))) {
+		if (((y + (5 * adjCombDown) <= 239) && (y - (5 * adjCombUp) >= 0))) {
 
 			//Go through the image horizontally
 			for (x = rect->left; x <= rect->right; x++) {
 
 				//Check if we draw inside the screen on x position
-				if (((x + (5 * adjCombLeft) <= 319) && (x - (5 * adjCombRight) >= 0))) {
+				if (((x + (5 * adjCombRight) <= 319) && (x - (5 * adjCombLeft) >= 0))) {
 
 					//Get the image position
 					imagepos = x + (y * 320);
 
 					//Do the visual alignment
-					imagepos -= 5 * adjCombRight;
-					imagepos += 5 * adjCombLeft;
-					imagepos -= 5 * adjCombDown * 320;
-					imagepos += 5 * adjCombUp * 320;
+					imagepos += 5 * adjCombRight;
+					imagepos -= 5 * adjCombLeft;
+					imagepos += 5 * adjCombDown * 320;
+					imagepos -= 5 * adjCombUp * 320;
 
 					//Do not use zero
 					if (bmp[count] == 0)
@@ -211,7 +232,7 @@ unsigned int camera_decompOutCombined(JDEC * jd, void * bitmap, JRECT * rect) {
 						blueV = (pixel & 0x1F) << 3;
 
 						//Get the thermal image color, rotated
-						if(rotationEnabled)
+						if (rotationEnabled)
 							pixel = smallBuffer[19199 - imagepos];
 						//Get the thermal image color, normal
 						else
@@ -284,7 +305,7 @@ void camera_get(byte mode, char* dirname = NULL)
 	if (mode == camera_serial)
 	{
 		//When rotation is enabled or using the ThermocamV4, send EXIF
-		if((rotationEnabled && (mlx90614Version == mlx90614Version_new)) || (mlx90614Version == mlx90614Version_old))
+		if ((rotationEnabled && (mlx90614Version == mlx90614Version_new)) || (mlx90614Version == mlx90614Version_old))
 		{
 			Serial.write(((jpegLen + 100) & 0xFF00) >> 8);
 			Serial.write((jpegLen + 100) & 0x00FF);
@@ -299,7 +320,7 @@ void camera_get(byte mode, char* dirname = NULL)
 	}
 
 	//Buffer for Teensy 3.1 / 3.2
-	if(teensyVersion == teensyVersion_old)
+	if (teensyVersion == teensyVersion_old)
 	{
 		//When streaming, allocate bytes
 		if (mode == camera_stream)
@@ -323,15 +344,20 @@ void camera_get(byte mode, char* dirname = NULL)
 	if (teensyVersion == teensyVersion_new) {
 		//Stream
 		if (mode == camera_stream)
-			ov2640_transfer(camera_jpegData, 1);
+			ov2640_transfer(camera_jpegData, 1, jpegLen);
 
 		//Save
 		else if (mode == camera_save) {
 			//Transfer from camera
-			ov2640_transfer(camera_jpegData, 0);
+			if(rotationEnabled)
+				//With EXIF
+				ov2640_transfer(camera_jpegData, 0, jpegLen + 100);
+			else
+				//Without EXIF
+				ov2640_transfer(camera_jpegData, 0, jpegLen);
 
 			//Start SD transmission
-			startAltClockline();
+			startAltClockline(true);
 
 			//Create JPEG file
 			createJPEGFile(dirname);
@@ -341,7 +367,7 @@ void camera_get(byte mode, char* dirname = NULL)
 				sdFile.write(camera_jpegData, jpegLen + 100);
 			else
 				sdFile.write(camera_jpegData, jpegLen);
-			
+
 			//Close file
 			sdFile.close();
 			endAltClockline();
@@ -353,14 +379,19 @@ void camera_get(byte mode, char* dirname = NULL)
 		//Serial transfer
 		else if (mode == camera_serial)
 		{
-			//Transfer from camera
-			ov2640_transfer(camera_jpegData, 0);
-
-			//Send over serial port, EXIF included if rotated
-			if(rotationEnabled)
+			//Transfer from camera and send to serial port
+			if (rotationEnabled)
+			{
+				//With EXIF
+				ov2640_transfer(camera_jpegData, 0, jpegLen + 100);
 				Serial.write(camera_jpegData, jpegLen + 100);
+			}
 			else
+			{
+				//Without EXIF
+				ov2640_transfer(camera_jpegData, 0, jpegLen);
 				Serial.write(camera_jpegData, jpegLen);
+			}
 
 			//Free buffer
 			free(camera_jpegData);
@@ -385,11 +416,11 @@ void camera_get(byte mode, char* dirname = NULL)
 		//Prepare the image for convertion to RGB565
 		jd_prepare(&camera_jd, camera_decompIn, camera_jdwork, 3100, &camera_iodev);
 
-		//Decomp the image normally for Teensy 3.6
-		if (teensyVersion == teensyVersion_new)
+		//Decompress into 320x240 buffer
+		if ((teensyVersion == teensyVersion_new) && (hqRes))
 			jd_decomp(&camera_jd, camera_decompOutNormal, 0);
 
-		//Decomp with transparency for Teensy 3.1 / 3.2
+		//Decompress into 160x120 buffer, also with transparency
 		else
 			jd_decomp(&camera_jd, camera_decompOutCombined, 0);
 

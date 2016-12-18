@@ -55,7 +55,7 @@ void displayBatteryStatus() {
 /* Display the current time on the screen*/
 void displayTime() {
 	//Tiny font
-	if (teensyVersion == teensyVersion_old) {
+	if ((teensyVersion == teensyVersion_old) || (!hqRes)) {
 		display_printNumI(hour(), 5, 228, 2, '0');
 		display_print((char*) ":", 23, 228);
 		display_printNumI(minute(), 27, 228, 2, '0');
@@ -77,7 +77,7 @@ void displayTime() {
 /* Display the date on screen */
 void displayDate() {
 	//Tiny font
-	if (teensyVersion == teensyVersion_old) {
+	if ((teensyVersion == teensyVersion_old) || (!hqRes)) {
 		display_printNumI(day(), 5, 0, 2, '0');
 		display_print((char*) ".", 23, 0);
 		display_printNumI(month(), 27, 0, 2, '0');
@@ -103,7 +103,7 @@ void displayWarmup() {
 	//Create string
 	sprintf(buffer, "Sensor warmup, %2ds left", (int)abs(60 - ((millis() - calTimer) / 1000)));
 	//Tinyfont
-	if (teensyVersion == teensyVersion_old)
+	if ((teensyVersion == teensyVersion_old) || (!hqRes))
 		display_print(buffer, 45, 200);
 	//Smallfont
 	else
@@ -167,7 +167,7 @@ void displayMinMaxPoint(bool min)
 /* Display free space on screen*/
 void displayFreeSpace() {
 	//Tinyfont
-	if (teensyVersion == teensyVersion_old)
+	if ((teensyVersion == teensyVersion_old) || (!hqRes))
 		display_print(sdInfo, 197, 228);
 	//Smallfont
 	else
@@ -199,7 +199,7 @@ void displayInfos() {
 	display_setBackColor(VGA_TRANSPARENT);
 
 	//For Teensy 3.6, set small font
-	if (teensyVersion == teensyVersion_new)
+	if ((teensyVersion == teensyVersion_new) && (hqRes))
 		display_setFont(smallFont);
 	//For Teensy 3.1 / 3.2, set tiny font
 	else

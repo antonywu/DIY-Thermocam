@@ -423,7 +423,7 @@ void hotColdChooser() {
 
 	//Find min and max values
 	if ((autoMode) && (!limitsLocked)) {
-		getTemperatures();
+		lepton_getRawValues();
 		limitValues();
 	}
 
@@ -666,7 +666,7 @@ bool tempLimitsManualHandler() {
 			if (pressedButton == 0) {
 				//Refresh min and max
 				delay(10);
-				getTemperatures();
+				lepton_getRawValues();
 				limitValues();
 			}
 			//SELECT
@@ -1191,15 +1191,18 @@ bool modeMenu() {
 			if (pressedButton == 0) {
 				//Show message
 				showFullMessage((char*)"Please wait..", true);
-				//Set camera resolution to high
-				camera_changeRes(camera_resHigh);
+
+				//Set camera resolution to save
+				camera_setSaveRes();
+
 				//Set display mode to thermal
 				displayMode = displayMode_thermal;
 				EEPROM.write(eeprom_displayMode, displayMode_thermal);
 				return true;
 			}
-			//Visual
-			if (pressedButton == 1) {
+
+			//Visual or combined
+			if ((pressedButton == 1) || (pressedButton == 2)) {
 				//If the visual camera is not working
 				if (!checkDiagnostic(diag_camera))
 				{
@@ -1207,40 +1210,80 @@ bool modeMenu() {
 					delay(1000);
 					return false;
 				}
+
 				//Show message
 				showFullMessage((char*)"Please wait..", true);
-				//Set camera resolution to low
-				camera_changeRes(camera_resLow);
-				//Take a new image
-				camera_capture();
+
+				//Set camera resolution to streaming
+				camera_setStreamRes();
+
 				//Set display mode to visual
-				displayMode = displayMode_visual;
-				EEPROM.write(eeprom_displayMode, displayMode_visual);
-				return true;
-			}
-			//Combined
-			if (pressedButton == 2) {
-				//If the visual camera is not working
-				if (!checkDiagnostic(diag_camera))
+				if (pressedButton == 1)
 				{
-					showFullMessage((char*)"Cam not connected!", true);
-					delay(1000);
-					return false;
+					displayMode = displayMode_visual;
+					EEPROM.write(eeprom_displayMode, displayMode_visual);
 				}
-				//Show message
-				showFullMessage((char*)"Please wait..", true);
-				//Set camera resolution to low
-				camera_changeRes(camera_resLow);
-				//Take a new image
-				camera_capture();
 				//Set display mode to combined
-				displayMode = displayMode_combined;
-				EEPROM.write(eeprom_displayMode, displayMode_combined);
+				else
+				{
+					displayMode = displayMode_combined;
+					EEPROM.write(eeprom_displayMode, displayMode_combined);
+				}
 				return true;
 			}
 			//Back
 			if (pressedButton == 3)
 				return false;
+		}
+	}
+}
+
+/* HQ Resolution Menu */
+void hqResolutionMenu() {
+	drawTitle((char*) "HQ Resolution");
+	buttons_deleteAllButtons();
+	buttons_setTextFont(smallFont);
+	buttons_addButton(20, 60, 130, 70, (char*) "Off (160x120)");
+	buttons_addButton(170, 60, 130, 70, (char*) "On (320x240)");
+	buttons_addButton(20, 150, 280, 70, (char*) "Save");
+	buttons_drawButtons();
+	if (hqRes)
+		buttons_setActive(1);
+	else
+		buttons_setActive(0);
+	//Touch handler
+	while (true) {
+		//touch pressed
+		if (touch_touched() == true) {
+			int pressedButton = buttons_checkButtons();
+			//Off
+			if (pressedButton == 0) {
+				if (hqRes) {
+					hqRes = false;
+					buttons_setActive(0);
+					buttons_setInactive(1);
+				}
+			}
+			//On
+			else if (pressedButton == 1) {
+				if (!hqRes) {
+					hqRes = true;
+					buttons_setActive(1);
+					buttons_setInactive(0);
+				}
+			}
+			//Save
+			else if (pressedButton == 2) {
+				//Change camera resolution
+				if (displayMode == displayMode_thermal)
+					camera_setSaveRes();
+				else
+					camera_setStreamRes();
+
+				//Write new settings to EEPROM
+				EEPROM.write(eeprom_hqRes, hqRes);
+				break;
+			}
 		}
 	}
 }
@@ -1263,13 +1306,19 @@ void drawMainMenu(byte pos) {
 	//Second page
 	if (pos == 1) {
 		buttons_addButton(23, 28, 80, 80, icon4Bitmap, icon4Colors);
-		buttons_addButton(120, 28, 80, 80, icon5Bitmap, icon5Colors);
+		if (teensyVersion == teensyVersion_old)
+			buttons_addButton(120, 28, 80, 80, icon5Bitmap_1, icon5Colors);
+		else
+			buttons_addButton(120, 28, 80, 80, icon5Bitmap_2, icon5Colors);
 		buttons_addButton(217, 28, 80, 80, icon6Bitmap, icon6Colors);
 	}
 	//Third page
 	if (pos == 2) {
 		buttons_addButton(23, 28, 80, 80, icon7Bitmap, icon7Colors);
-		buttons_addButton(120, 28, 80, 80, icon8Bitmap, icon8Colors);
+		if (teensyVersion == teensyVersion_old)
+			buttons_addButton(120, 28, 80, 80, icon8Bitmap_1, icon8Colors);
+		else
+			buttons_addButton(120, 28, 80, 80, icon8Bitmap_2, icon8Colors);
 		buttons_addButton(217, 28, 80, 80, icon9Bitmap, icon9Colors);
 	}
 	//Fourth page
@@ -1310,9 +1359,12 @@ bool mainMenuSelect(byte pos, byte page) {
 		if (pos == 0) {
 			loadFiles();
 		}
-		//File Transfer
+		//File Transfer or Shutter
 		if (pos == 1) {
-			massStorage();
+			if (teensyVersion == teensyVersion_old)
+				massStorage();
+			else
+				lepton_ffc(true);
 		}
 		//Settings
 		if (pos == 2) {
@@ -1326,9 +1378,12 @@ bool mainMenuSelect(byte pos, byte page) {
 		if (pos == 0) {
 			return liveDispMenu();
 		}
-		//Laser
+		//Laser or HQ resolution
 		if (pos == 1) {
-			toggleLaser(true);
+			if (teensyVersion == teensyVersion_old)
+				toggleLaser(true);
+			else
+				hqResolutionMenu();
 		}
 		//Toggle display
 		if (pos == 2) {

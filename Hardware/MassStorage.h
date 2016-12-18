@@ -91,13 +91,9 @@ void restartAndJumpToApp(void) {
 /* Go into mass storage mode */
 void massStorage() {
 	//Thermocam V4 or DIY-Thermocam V2 does not support this
-	if ((mlx90614Version == mlx90614Version_old) || (teensyVersion == teensyVersion_new)) {
-		//Display error msg for 1sec
-		showFullMessage((char*) "Only works on the DIY-Thermocam V1", true);
-		delay(1000);
-		//Go back
+	if ((mlx90614Version == mlx90614Version_old) || (teensyVersion == teensyVersion_new))
 		return;
-	}
+
 	//Check if the user really wants to do it
 	if (!massStoragePrompt())
 		return;

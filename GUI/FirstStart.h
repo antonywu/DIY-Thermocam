@@ -249,9 +249,9 @@ boolean checkLiveModeHelper() {
 /* Help screen for the first start of live mode */
 void liveModeHelper() {
 	//Hint screen for the combined image setting
-	camera_changeRes(camera_resLow);
+	camera_setStreamRes();
 	combinedAlignmentScreen();
-	camera_changeRes(camera_resHigh);
+	camera_setSaveRes();
 
 	//Do the first time calibration
 	calibrationHelperScreen();
@@ -316,6 +316,10 @@ void stdEEPROMSet() {
 
 	//Set filter type to box blur
 	EEPROM.write(eeprom_filterType, filterType_gaussian);
+
+	//For DIY-Thermocam V2, set HQ res to true
+	if(teensyVersion == teensyVersion_new)
+		EEPROM.write(eeprom_hqRes, true);
 
 	//Set current firmware version
 	EEPROM.write(eeprom_fwVersion, fwVersion);

@@ -47,7 +47,7 @@ float bytesToFloat(uint8_t* farray)
 	return val;
 }
 
-/* Switch the SPI0 clockline to pin 14 */
+/* Switch the SPI clockline to pin 14 */
 void startAltClockline(boolean sdStart) {
 	CORE_PIN13_CONFIG = PORT_PCR_MUX(1);
 	CORE_PIN14_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
@@ -55,7 +55,7 @@ void startAltClockline(boolean sdStart) {
 		sd.begin(pin_sd_cs, SPI_FULL_SPEED);
 }
 
-/* Switch the SPI0 clockline back to pin 13 */
+/* Switch the SPI clockline back to pin 13 */
 void endAltClockline() {
 	CORE_PIN13_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
 	CORE_PIN14_CONFIG = PORT_PCR_MUX(1);
@@ -285,6 +285,16 @@ void readEEPROM() {
 		minMaxPoints = read;
 	else
 		minMaxPoints = minMaxPoints_disabled;
+	//HQ res, V2 only
+	if(teensyVersion == teensyVersion_new)
+	{
+		read = EEPROM.read(eeprom_hqRes);
+		if ((read == false) || (read == true))
+			hqRes = read;
+		else
+			hqRes = true;
+
+	}
 	//Align combined settings
 	readAdjustCombined();
 }
@@ -428,7 +438,7 @@ void initBuffer()
 void displayBuffer()
 {
 	//Display 320x240 for Teensy 3.6
-	if (teensyVersion == teensyVersion_new)
+	if ((teensyVersion == teensyVersion_new) && (hqRes))
 		display_writeScreen(bigBuffer, 0);
 	//160x120 for Teensy 3.1 / 3.2
 	else
@@ -554,14 +564,8 @@ bool checkScreenLight() {
 void toggleLaser(bool message) {
 	//Thermocam V4 or DIY-Thermocam V2 does not support this
 	if ((mlx90614Version == mlx90614Version_old) || (teensyVersion == teensyVersion_new))
-	{
-		//Show a message
-		if (message) {
-			showFullMessage((char*) "Only works on the DIY-Thermocam V1", true);
-			delay(1000);
-		}
 		return;
-	}
+
 	//Laser enabled, switch off
 	if (laserEnabled) {
 		digitalWrite(pin_laser, LOW);

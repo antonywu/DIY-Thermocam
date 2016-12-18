@@ -154,13 +154,13 @@ void loadBMPImage(char* filename) {
 	//For Teensy 3.6, use the big buffer
 	else
 	{
-		for (int y = 239; y >= 0; y--)
+		for (int y = 479; y >= 0; y--)
 		{
 			for (int x = 0; x < 640; x++) {
 				low = sdFile.read();
 				high = sdFile.read();
 				//Get the image color
-				bigBuffer[x + (y * 320)] = (high << 8) | low;
+				bigBuffer[(x/2) + ((y / 2) * 320)] = (high << 8) | low;
 			}
 		}
 		//Close data file
@@ -1036,6 +1036,9 @@ void loadSettings() {
 	storageEnabled = false;
 	minMaxPoints = minMaxPoints_disabled;
 	hotColdMode = hotColdMode_disabled;
+	//For Teensy 3.6, use HQ resolution for loading
+	if (teensyVersion == teensyVersion_new)
+		hqRes = true;
 }
 
 /* De-Alloc space for the different arrays*/

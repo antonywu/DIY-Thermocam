@@ -29,12 +29,15 @@ void lepton_begin() {
 	//Start alternative clock line, except for old HW
 	if (mlx90614Version == mlx90614Version_new)
 		startAltClockline();
+
 	//For Teensy  3.1 / 3.2 and Lepton3 use this one
 	if ((teensyVersion == teensyVersion_old) && (leptonVersion == leptonVersion_3_shutter))
 		SPI.beginTransaction(SPISettings(30000000, MSBFIRST, SPI_MODE0));
+
 	//Otherwise use 20 Mhz maximum and SPI mode 1
 	else
 		SPI.beginTransaction(SPISettings(20000000, MSBFIRST, SPI_MODE1));
+
 	//Start transfer  - CS LOW
 	digitalWrite(pin_lepton_cs, LOW);
 }
@@ -43,8 +46,10 @@ void lepton_begin() {
 void lepton_end() {
 	//End transfer - CS HIGH
 	digitalWriteFast(pin_lepton_cs, HIGH);
+
 	//End SPI Transaction
 	SPI.endTransaction();
+
 	//End alternative clock line, except for old HW
 	if (mlx90614Version == mlx90614Version_new)
 		endAltClockline();
@@ -53,26 +58,99 @@ void lepton_end() {
 /* Reset the SPI bus to re-initiate Lepton communication */
 void lepton_reset()
 {
-	//End Lepton SPI
 	lepton_end();
-	//Short delay
 	delay(186);
-	//Begin Lepton SPI
 	lepton_begin();
 }
 
-/* Reads one line (164 Bytes) from the lepton over SPI */
-LeptonReadError lepton_read(byte line, byte seg) {
+/* Store one package of 80 columns into RAM */
+bool savePackage(byte line, byte segment = 0) {
+	//Go through the video pixels for one video line
+	for (int column = 0; column < 80; column++) {
+		//Make a 16-bit rawvalue from the lepton frame
+		uint16_t result = (uint16_t)(leptonFrame[2 * column + 4] << 8
+			| leptonFrame[2 * column + 5]);
+
+		//Invalid value, return
+		if (result == 0) {
+			return 0;
+		}
+
+		//Lepton2
+		if (leptonVersion != leptonVersion_3_shutter) {
+			//Rotated or old hardware version
+			if (((mlx90614Version == mlx90614Version_old) && (!rotationEnabled)) ||
+				((mlx90614Version == mlx90614Version_new) && (rotationEnabled))) {
+				smallBuffer[(line * 2 * 160) + (column * 2)] = result;
+				smallBuffer[(line * 2 * 160) + (column * 2) + 1] = result;
+				smallBuffer[(line * 2 * 160) + 160 + (column * 2)] = result;
+				smallBuffer[(line * 2 * 160) + 160 + (column * 2) + 1] = result;
+			}
+			//Non-rotated
+			else {
+				smallBuffer[19199 - ((line * 2 * 160) + (column * 2))] = result;
+				smallBuffer[19199 - ((line * 2 * 160) + (column * 2) + 1)] = result;
+				smallBuffer[19199 - ((line * 2 * 160) + 160 + (column * 2))] = result;
+				smallBuffer[19199 - ((line * 2 * 160) + 160 + (column * 2) + 1)] = result;
+			}
+		}
+
+		//Lepton3
+		else {
+			//Non-rotated
+			if (!rotationEnabled) {
+				switch (segment) {
+				case 1:
+					smallBuffer[19199 - (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
+					break;
+				case 2:
+					smallBuffer[14399 - (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
+					break;
+				case 3:
+					smallBuffer[9599 - (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
+					break;
+				case 4:
+					smallBuffer[4799 - (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
+					break;
+				}
+			}
+			//Rotated
+			else {
+				switch (segment) {
+				case 1:
+					smallBuffer[((line / 2) * 160) + ((line % 2) * 80) + (column)] = result;
+					break;
+				case 2:
+					smallBuffer[4800 + (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
+					break;
+				case 3:
+					smallBuffer[9600 + (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
+					break;
+				case 4:
+					smallBuffer[14400 + (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
+					break;
+				}
+			}
+		}
+	}
+
+	//Everything worked
+	return 1;
+}
+
+/* Get one line package from the Lepton */
+LeptonReadError lepton_getPackage(byte line, byte seg) {
 	//Receive one frame over SPI
 	SPI.transfer(leptonFrame, 164);
+
 	//Repeat as long as the frame is not valid, equals sync
-	if ((leptonFrame[0] & 0x0F) == 0x0F) {
+	if ((leptonFrame[0] & 0x0F) == 0x0F)
 		return DISCARD;
-	}
+
 	//Check if the line number matches the expected line
-	if (leptonFrame[1] != line) {
+	if (leptonFrame[1] != line)
 		return ROW_ERROR;
-	}
+
 	//For the Lepton3, check if the segment number matches
 	if ((line == 20) && (leptonVersion == leptonVersion_3_shutter)) {
 		byte segment = (leptonFrame[0] >> 4);
@@ -81,17 +159,95 @@ LeptonReadError lepton_read(byte line, byte seg) {
 		if (segment != seg)
 			return SEGMENT_ERROR;
 	}
+
+	//Everything worked
 	return NONE;
 }
 
+/* Get one frame of raw values from the lepton */
+void lepton_getRawValues()
+{
+	byte line, error, segmentNumbers;
+
+	//Determine number of segments
+	if (leptonVersion == leptonVersion_3_shutter)
+		segmentNumbers = 4;
+	else
+		segmentNumbers = 1;
+
+	//Begin SPI Transmission
+	lepton_begin();
+
+	//Go through the segments
+	for (byte segment = 1; segment <= segmentNumbers; segment++) {
+		//Reset error counter for each segment
+		error = 0;
+
+		//Go through one segment, equals 60 lines of 80 values
+		do {
+			for (line = 0; line < 60; line++) {
+				//Maximum error count
+				if (error == 255) {
+					//If show menu was entered
+					if (showMenu) {
+						lepton_end();
+						return;
+					}
+					//Reset segment
+					segment = 1;
+					//Reset error
+					error = 0;
+					//Reset Lepton SPI
+					lepton_reset();
+					//Restart at line 0
+					break;
+				}
+
+				//Get a package from the lepton
+				LeptonReadError retVal = lepton_getPackage(line, segment);
+
+				//If everythin worked, continue
+				if (retVal == NONE)
+					if (savePackage(line, segment))
+						continue;
+
+				//Stabilize framerate
+				delayMicroseconds(800);
+
+				//Raise lepton error
+				error++;
+
+				//Restart at line 0
+				break;
+			}
+		} while (line != 60);
+	}
+
+	//End SPI Transmission
+	lepton_end();
+}
+
 /* Trigger a flat-field-correction on the Lepton */
-bool lepton_ffc() {
+bool lepton_ffc(bool message = false) {
+	//Return if no shutter attached
+	if (leptonVersion == leptonVersion_2_noShutter)
+		return false;
+
+	//Show a message for main menu
+	if (message)
+		showFullMessage((char*) "Triggering the Shutter..", true);
+
 	Wire.beginTransmission(0x2A);
 	Wire.write(0x00);
 	Wire.write(0x04);
 	Wire.write(0x02);
 	Wire.write(0x42);
 	byte error = Wire.endTransmission();
+
+	//Wait some time when in main menu
+	if (message)
+		delay(2000);
+
 	return error;
 }
 
@@ -276,7 +432,6 @@ void lepton_init() {
 	//Set the compensation value to zero
 	calComp = 0;
 
-
 	//Activate auto mode
 	autoMode = true;
 	//Deactivate limits Locked
@@ -285,9 +440,7 @@ void lepton_init() {
 	//Check if SPI works
 	lepton_begin();
 	do {
-		digitalWriteFast(pin_lepton_cs, LOW);
 		SPI.transfer(leptonFrame, 164);
-		digitalWriteFast(pin_lepton_cs, HIGH);
 	}
 	//Repeat as long as the frame is not valid, equals sync
 	while (((leptonFrame[0] & 0x0F) == 0x0F) && ((millis() - calTimer) < 1000));

@@ -133,36 +133,40 @@ int ov2640_wrSensorRegs8_8(const struct sensor_reg* reglist) {
 
 /* SPI write operation */
 void ov2640_busWrite(int address, int value) {
-	//Take the SS pin low to select the chip
-	SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+	startAltClockline();
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(2);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(1);
-	digitalWrite(pin_cam_cs, LOW);
+	//Take the SS pin low to select the chip
+	SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+	digitalWriteFast(pin_cam_cs, LOW);
 	//Send in the address and value via SPI
 	SPI.transfer(address);
 	SPI.transfer(value);
 	//Take the SS pin high to de-select the chip
-	digitalWrite(pin_cam_cs, HIGH);
+	digitalWriteFast(pin_cam_cs, HIGH);
+	SPI.endTransaction();
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(1);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(2);
-	SPI.endTransaction();
+	endAltClockline();
 }
 
 /* SPI read operation */
 uint8_t ov2640_busRead(int address) {
-	//Take the SS pin low to select the chip
-	SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+	startAltClockline();
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(2);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(1);
-	digitalWrite(pin_cam_cs, LOW);
+	//Take the SS pin low to select the chip
+	SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+	digitalWriteFast(pin_cam_cs, LOW);
 	//Send in the address and value via SPI
 	SPI.transfer(address);
 	uint8_t value = SPI.transfer(0x00);
 	//Take the SS pin high to de-select the chip
-	digitalWrite(pin_cam_cs, HIGH);
+	digitalWriteFast(pin_cam_cs, HIGH);
+	SPI.endTransaction();
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(1);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(2);
-	SPI.endTransaction();
+	endAltClockline();
 	//Return value
 	return value;
 }
@@ -281,19 +285,21 @@ uint32_t ov2640_readFifoLength(void) {
 
 /* Start the FIFO burst mode */
 void ov2640_startFifoBurst(void) {
-	SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(2);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(1);
-	digitalWrite(pin_cam_cs, LOW);
+	startAltClockline();
+	SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+	digitalWriteFast(pin_cam_cs, LOW);
 	SPI.transfer(BURST_FIFO_READ);
 }
 
 /* End the FIFO burst mode */
 void ov2640_endFifoBurst(void) {
-	digitalWrite(pin_cam_cs, HIGH);
+	digitalWriteFast(pin_cam_cs, HIGH);
+	SPI.endTransaction();
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(1);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(2);
-	SPI.endTransaction();
+	endAltClockline();
 }
 
 /* Set corresponding bit */
@@ -374,7 +380,7 @@ void ov2640_capture(void) {
 }
 
 /* Transfer the JPEG data from the OV2640 */
-void ov2640_transfer(uint8_t * jpegData, boolean stream)
+void ov2640_transfer(uint8_t * jpegData, boolean stream, uint32_t length = 0)
 {
 	//Count variable
 	uint32_t counter = 0;
@@ -419,8 +425,11 @@ void ov2640_transfer(uint8_t * jpegData, boolean stream)
 		}
 
 		//End byte sequence
-		if ((temp == 0xD9) && (temp_last == 0xFF))
+		if (((temp == 0xD9) && (temp_last == 0xFF)) || (counter == length))
+		{
 			break;
+		}
+			
 	}
 
 	//Stop FIFO Burst

@@ -45,18 +45,33 @@ int getLipoPerc(float vol) {
 /* Measure the battery voltage and convert it to percent */
 void checkBattery(bool start = false) {
 	//Read battery voltage
-	float vBat = (batMeasure->analogRead(pin_bat_measure) * 1.5 * 3.3) / batMeasure->getMaxValue(ADC_0);
+	float vBat;
+	//Thermocam V4 or DIY-Thermocam V1
+	if(teensyVersion == teensyVersion_old)
+		vBat= (batMeasure->analogRead(pin_bat_measure) * 1.5 * 3.3) / batMeasure->getMaxValue(ADC_0);
+	//DIY-Thermocam V2
+	else
+		vBat = (batMeasure->analogRead(pin_bat_measure) * 1.55 * 3.3) / batMeasure->getMaxValue(ADC_0);
 
 	//Check if the device is charging
 	int vUSB = analogRead(pin_usb_measure);
-
 	//Battery is not working if no voltage measured and not connected to USB
 	if ((vBat == -1) && (vUSB <= 50))
 		setDiagnostic(diag_bat);
 
 	//If not charging, add some value to correct the voltage
 	if (vUSB <= 50)
-		vBat += 0.05;
+	{
+		//DIY-Thermocam V1
+		if ((teensyVersion == teensyVersion_old) && (mlx90614Version == mlx90614Version_new))
+			vBat += 0.05;
+		//Thermocam V4
+		else if ((teensyVersion == teensyVersion_old) && (mlx90614Version == mlx90614Version_old))
+			vBat += 0.25;
+		//DIY-Thermocam V2
+		else
+			vBat += 0.15;
+	}
 
 	//Calculate the percentage out of the voltage
 	batPercentage = getLipoPerc(vBat);

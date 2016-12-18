@@ -392,7 +392,7 @@ void display_setPixel(word color)
 	else
 	{
 		//320x240 for Teensy 3.6
-		if (teensyVersion == teensyVersion_new)
+		if ((teensyVersion == teensyVersion_new) && hqRes)
 		{
 			pos = ((imageY) * 320) + imageX;
 			if(pos < 76800)
@@ -419,7 +419,7 @@ void display_LCD_Write_DATA(char VH, char VL)
 void display_drawLine(int x1, int y1, int x2, int y2)
 {
 	//For buffer display on Teensy 3.1 / 3.2, half coordinates
-	if ((display_writeToImage) && (teensyVersion == teensyVersion_old)) {
+	if ((display_writeToImage) && ((teensyVersion == teensyVersion_old) || (!hqRes))) {
 		x1 = x1 / 2;
 		y1 = y1 / 2;
 		x2 = x2 / 2;
@@ -602,7 +602,7 @@ void display_fillRoundRect(int x1, int y1, int x2, int y2)
 void display_drawCircle(int x, int y, int radius)
 {
 	//For buffer display on Teensy 3.1 / 3.2, half coordinates
-	if ((display_writeToImage) && (teensyVersion == teensyVersion_old)) {
+	if ((display_writeToImage) && ((teensyVersion == teensyVersion_old) || (!hqRes))) {
 		x = x / 2;
 		y = y / 2;
 		radius = radius / 2;
@@ -720,7 +720,7 @@ void display_printChar(byte c, int x, int y)
 	word temp;
 	
 	//For buffer display on Teensy 3.1 / 3.2, half coordinates
-	if ((display_writeToImage) && (teensyVersion == teensyVersion_old)) {
+	if ((display_writeToImage) && ((teensyVersion == teensyVersion_old) || (!hqRes))) {
 		x = x / 2;
 		y = y / 2;
 	}
@@ -979,7 +979,7 @@ void display_print(char* st, int x, int y, int deg = 0)
 	stl = strlen(st);
 
 	//For buffer display on Teensy 3.1 / 3.2, half coordinates
-	if ((display_writeToImage) && (teensyVersion == teensyVersion_old)) {
+	if ((display_writeToImage) && ((teensyVersion == teensyVersion_old) || (!hqRes))) {
 		x = x / 2;
 		y = y / 2;
 	}
@@ -1425,13 +1425,14 @@ void display_writeScreen(unsigned short* pcolors, boolean small)
 	//320x240 array
 	else
 	{
-		for (uint16_t y = 240; y > 0; y--) {
-			for (uint16_t x = 320; x > 1; x--) {
-				display_writedata16_cont(*pcolors++);
-			}
-			display_writedata16_last(*pcolors++);
+		uint16_t *colors_end = &pcolors[76799];
+		uint16_t *colors_curr = pcolors;
+
+		// Quick write out the data;
+		while (colors_curr < colors_end) {
+			display_writedata16_cont(*colors_curr++);
 		}
-		SPI.endTransaction();
+		display_writedata16_last(*colors_curr);
 	}
 
 	SPI.endTransaction();

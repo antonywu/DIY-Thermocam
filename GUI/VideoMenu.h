@@ -291,7 +291,7 @@ void videoCapture() {
 		}
 
 		//Receive the temperatures over SPI
-		getTemperatures();
+		lepton_getRawValues();
 		//Compensate calibration with object temp
 		compensateCalib();
 

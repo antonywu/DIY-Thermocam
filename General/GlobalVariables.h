@@ -81,6 +81,9 @@ bool laserEnabled;
 //Display mode
 byte displayMode;
 
+//Resolution, V2 only
+bool hqRes;
+
 //FLIR Lepton sensor version
 byte leptonVersion;
 //FLIR Lepton Shutter mode

@@ -85,14 +85,14 @@ void resizeImage() {
 	uint16_t  xmax, ymax;
 	unsigned short* pixelBuffer;
 
-	//For Teensy 3.1/3.2
-	if (teensyVersion == teensyVersion_old)
+	//For 160x120
+	if ((teensyVersion == teensyVersion_old) || (!hqRes))
 	{
 		xmax = 160;
 		ymax = 120;
 		pixelBuffer = smallBuffer;
 	}
-	//Teensy 3.6
+	//For 320x240
 	else
 	{
 		xmax = 320;
@@ -270,137 +270,6 @@ void smallToBigBuffer(bool trans)
 			offset++;
 		}
 	}
-}
-
-/* Store one package of 80 columns into RAM */
-boolean savePackage(byte line, byte segment = 0) {
-	//Go through the video pixels for one video line
-	for (int column = 0; column < 80; column++) {
-		//Make a 16-bit rawvalue from the lepton frame
-		uint16_t result = (uint16_t)(leptonFrame[2 * column + 4] << 8
-			| leptonFrame[2 * column + 5]);
-
-		//Invalid value, return
-		if (result == 0) {
-			return 0;
-		}
-
-		//Lepton2
-		if (leptonVersion != leptonVersion_3_shutter) {
-			//Rotated or old hardware version
-			if (((mlx90614Version == mlx90614Version_old) && (!rotationEnabled)) ||
-				((mlx90614Version == mlx90614Version_new) && (rotationEnabled))) {
-				smallBuffer[(line * 2 * 160) + (column * 2)] = result;
-				smallBuffer[(line * 2 * 160) + (column * 2) + 1] = result;
-				smallBuffer[(line * 2 * 160) + 160 + (column * 2)] = result;
-				smallBuffer[(line * 2 * 160) + 160 + (column * 2) + 1] = result;
-			}
-			//Non-rotated
-			else {
-				smallBuffer[19199 - ((line * 2 * 160) + (column * 2))] = result;
-				smallBuffer[19199 - ((line * 2 * 160) + (column * 2) + 1)] = result;
-				smallBuffer[19199 - ((line * 2 * 160) + 160 + (column * 2))] = result;
-				smallBuffer[19199 - ((line * 2 * 160) + 160 + (column * 2) + 1)] = result;
-			}
-		}
-		//Lepton3
-		else {
-			//Non-rotated
-			if (!rotationEnabled) {
-				switch (segment) {
-				case 1:
-					smallBuffer[19199 - (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
-					break;
-				case 2:
-					smallBuffer[14399 - (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
-					break;
-				case 3:
-					smallBuffer[9599 - (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
-					break;
-				case 4:
-					smallBuffer[4799 - (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
-					break;
-				}
-			}
-			//Rotated
-			else {
-				switch (segment) {
-				case 1:
-					smallBuffer[((line / 2) * 160) + ((line % 2) * 80) + (column)] = result;
-					break;
-				case 2:
-					smallBuffer[4800 + (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
-					break;
-				case 3:
-					smallBuffer[9600 + (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
-					break;
-				case 4:
-					smallBuffer[14400 + (((line / 2) * 160) + ((line % 2) * 80) + (column))] = result;
-					break;
-				}
-			}
-		}
-	}
-
-	//Everything worked
-	return 1;
-}
-
-/* Get one smallBuffer from the Lepton module */
-void getTemperatures() {
-	byte leptonError, segmentNumbers, line;
-
-	//For Lepton2 sensor, get only one segment per frame
-	if (leptonVersion != leptonVersion_3_shutter)
-		segmentNumbers = 1;
-	//For Lepton3 sensor, get four packages per frame
-	else
-		segmentNumbers = 4;
-	//Begin SPI transmission
-	lepton_begin();
-	//Go through the segments
-	for (byte segment = 1; segment <= segmentNumbers; segment++) {
-		leptonError = 0;
-		do {
-			for (line = 0; line < 60; line++) {
-				//If line matches expectation
-				if (lepton_read(line, segment) == NONE) {
-					if (!savePackage(line, segment)) {
-						//Stabilize framerate
-						delayMicroseconds(800);
-						//Raise lepton error
-						leptonError++;
-						break;
-					}
-				}
-				//Reset if the expected line does not match the answer
-				else {
-					if (leptonError == 255) {
-						//If show menu was entered
-						if (showMenu) {
-							lepton_end();
-							return;
-						}
-						//Reset segment
-						segment = 1;
-						//Reset lepton error
-						leptonError = 0;
-						//Reset Lepton SPI
-						lepton_reset();
-						break;
-					}
-
-					//Stabilize framerate
-					delayMicroseconds(800);
-					//Raise lepton error
-					leptonError++;
-					break;
-				}
-			}
-		} while (line != 60);
-	}
-	//End Lepton SPI
-	lepton_end();
 }
 
 /* Clears the temperature points array */
@@ -682,7 +551,7 @@ void convertColors(bool small) {
 	int size;
 	unsigned short* frameBuffer;
 	//Teensy 3.6, not for preview
-	if ((teensyVersion == teensyVersion_new) && !small) {
+	if ((teensyVersion == teensyVersion_new) && (!small) && (hqRes)) {
 		size = 76800;
 		frameBuffer = bigBuffer;
 	}
@@ -787,7 +656,7 @@ void calculatePointPos(int16_t* xpos, int16_t* ypos, uint16_t pixelIndex) {
 /* Creates a thermal smallBuffer and stores it in the array */
 void createThermalImg(bool small) {
 	//Receive the temperatures over SPI
-	getTemperatures();
+	lepton_getRawValues();
 
 	//Compensate calibration with object temp
 	compensateCalib();
@@ -813,8 +682,8 @@ void createThermalImg(bool small) {
 	else if (filterType == filterType_gaussian)
 		gaussianFilter();
 
-	//Teensy 3.6 - Resize to big buffer if not used for preview
-	if ((teensyVersion == teensyVersion_new) && !small)
+	//Teensy 3.6 - Resize to big buffer when HQRes and not preview
+	if ((teensyVersion == teensyVersion_new) && (!small) && (hqRes))
 		smallToBigBuffer();
 
 	//Convert lepton data to RGB565 colors
@@ -824,7 +693,7 @@ void createThermalImg(bool small) {
 /* Create the visual or combined smallBuffer display */
 void createVisCombImg() {
 	//Receive the temperatures over SPI
-	getTemperatures();
+	lepton_getRawValues();
 	//Compensate calibration with object temp
 	compensateCalib();
 
@@ -839,8 +708,8 @@ void createVisCombImg() {
 	if ((autoMode) && (!limitsLocked))
 		limitValues();
 
-	//For Teensy 3.6, decompress visual image before thermal
-	if (teensyVersion == teensyVersion_new)
+	//For 320x240 resolution, decompress visual image before thermal
+	if ((teensyVersion == teensyVersion_new) && (hqRes))
 	{
 		//Fill array white
 		for (uint32_t i = 0; i < 76800; i++)
@@ -859,16 +728,16 @@ void createVisCombImg() {
 		else if (filterType == filterType_gaussian)
 			gaussianFilter();
 
-		//Teensy 3.6 - Resize to big buffer and create transparency
-		if (teensyVersion == teensyVersion_new)
+		//Teensy 3.6 with HQRes - Resize to big buffer and create transparency
+		if ((teensyVersion == teensyVersion_new) && (hqRes))
 			smallToBigBuffer(true);
 		//Teensy 3.1 / 3.2 - Convert raw values to RGB565 
 		else
 			convertColors();
 	}
 
-	//For Teensy 3.1/3.2, decompress visual image after thermal image
-	if (teensyVersion == teensyVersion_old)
+	//For low resolution, decompress visual image after thermal image
+	if ((teensyVersion == teensyVersion_old) || (!hqRes))
 	{
 		//Resize the thermal image
 		resizeImage();

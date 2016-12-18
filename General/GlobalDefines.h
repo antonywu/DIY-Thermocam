@@ -161,6 +161,7 @@
 #define eeprom_adjComb1Factor   165
 #define eeprom_adjComb2Factor   166
 #define eeprom_adjComb3Factor   167
+#define eeprom_hqRes            168
 #define eeprom_fwVersion        250
 #define eeprom_setValue         200
 

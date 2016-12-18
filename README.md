@@ -10,7 +10,7 @@ https://github.com/maxritter/DIY-Thermocam
 Download and install the following programs:
 
 1. Arduino 1.6.13:                      https://www.arduino.cc/en/Main/Software
-2. Teensyduino 1.32:                    https://www.pjrc.com/teensy/td_download.html
+2. Teensyduino 1.33:                    https://www.pjrc.com/teensy/td_download.html
 3. Visual Studio 2015 Community Edition: https://www.visualstudio.com/en-us/products/visual-studio-community-vs.aspx
 4. Visual Micro:                         http://www.visualmicro.com/page/Arduino-Visual-Studio-Downloads.aspx
 

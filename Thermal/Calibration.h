@@ -183,7 +183,7 @@ void calibrationProcess(bool serial, bool firstStart) {
 				//Safe delay for bad PCB routing
 				delay(10);
 				//Get temperatures
-				getTemperatures();
+				lepton_getRawValues();
 				//Calculate the average
 				average = calcAverage();
 			} while ((average == average_old) || (average == 0));
