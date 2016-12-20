@@ -101,7 +101,7 @@ void displayWarmup() {
 	char buffer[25];
 
 	//Create string
-	sprintf(buffer, "Sensor warmup, %2ds left", (int)abs(60 - ((millis() - calTimer) / 1000)));
+	sprintf(buffer, "Sensor warmup, %2ds left", (int)abs(30 - ((millis() - calTimer) / 1000)));
 	//Tinyfont
 	if ((teensyVersion == teensyVersion_old) || (!hqRes))
 		display_print(buffer, 45, 200);

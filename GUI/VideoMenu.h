@@ -152,57 +152,68 @@ bool videoIntervalChooser() {
 	return rtn;
 }
 
-/* Display the video capture screen contents */
-void refreshCapture(bool filter) {
-	//Apply low-pass filter
-	if (filter)
-	{
-		if (filterType == filterType_box)
-			boxFilter();
-		else if (filterType == filterType_gaussian)
-			gaussianFilter();
-	}
-
-	//Convert lepton data to RGB565 colors
-	convertColors(true);
-
-	//Draw thermal image on screen
-	display_writeScreen(smallBuffer, 1);
-}
-
 /* Captures video frames in an interval */
 void videoCaptureInterval(int16_t* remainingTime, int* framesCaptured, char* dirname) {
-	//Measure time it takes to display everything
-	long measure = millis();
 	char buffer[30];
 
-	//If there is no more time or the first frame, capture it
-	if ((*remainingTime == 0) || (*framesCaptured == 0)) {
+	//Measure time
+	long measure = millis();
+
+	//If there is no more time or the first frame
+	if ((*remainingTime <= 0) || (*framesCaptured == 0)) {
 
 		//Send capture command to camera if activated and there is enough time
-		if ((visualEnabled) && (videoInterval >= 10))
+		if ((visualEnabled && ((videoInterval >= 10) ||
+			teensyVersion == teensyVersion_new) && checkDiagnostic(diag_camera)) &&
+			((*remainingTime == 0) || (*framesCaptured == 0)))
 			camera_capture();
 
 		//Save video raw frame
 		saveRawData(false, dirname, *framesCaptured);
+	}
 
-		//Refresh capture
-		refreshCapture(true);
-		//Display title
-		display_setFont(bigFont);
-		display_print((char*) "Interval capture", CENTER, 20);
+	//Convert lepton data to RGB565 colors
+	convertColors();
 
+	//Display infos
+	displayInfos();
+
+	//Write to image buffer
+	display_writeToImage = true;
+
+	//Display title
+	if ((teensyVersion == teensyVersion_new) && (hqRes))
+		display_print((char*) "Interval capture", 105, 20);
+	else
+		display_print((char*) "Interval capture", 90, 20);
+
+	//Show saving message
+	if ((*remainingTime <= 0) || (*framesCaptured == 0))
+		sprintf(buffer, "Saving now!");
+	//Show waiting time
+	else
+		sprintf(buffer, "Saving in %ds", *remainingTime);
+
+	//Display message on buffer
+	if ((teensyVersion == teensyVersion_new) && (hqRes))
+		display_print(buffer, 120, 200);
+	else
+		display_print(buffer, 105, 200);
+
+	//Disable image buffer
+	display_writeToImage = false;
+
+	//Draw thermal image on screen
+	displayBuffer();
+
+	//If there is no more time or the first frame
+	if ((*remainingTime <= 0) || (*framesCaptured == 0)) {
 		//Save visual image if activated and camera connected
 		if (visualEnabled && ((videoInterval >= 10) ||
 			teensyVersion == teensyVersion_new) && checkDiagnostic(diag_camera)) {
-			//Display message
-			sprintf(buffer, "Saving thermal + visual now!");
-			display_setFont(smallFont);
-			display_print(buffer, CENTER, 210);
 
 			//Create filename to save data
-			char filename[] = "00000.JPG";
-			frameFilename(filename, *framesCaptured);
+			frameFilename(saveFilename, *framesCaptured);
 
 			//Save visual image
 			camera_get(camera_save, dirname);
@@ -211,33 +222,19 @@ void videoCaptureInterval(int16_t* remainingTime, int* framesCaptured, char* dir
 			int16_t elapsed = (millis() - measure) / 1000;
 			*remainingTime = videoInterval - elapsed;
 		}
-		else {
+		else
 			*remainingTime = videoInterval;
-			//Display message
-			sprintf(buffer, "Saving thermal frame now!");
-			display_setFont(smallFont);
-			display_print(buffer, CENTER, 210);
-		}
 
 		//Raise capture counter
 		*framesCaptured = *framesCaptured + 1;
 	}
-
-	//Show waiting time
-	else {
-		//Refresh display content
-		refreshCapture(true);
-		//Display title
-		display_setFont(bigFont);
-		display_print((char*) "Interval capture", CENTER, 20);
-		//Display remaining time message
-		sprintf(buffer, "Saving next frame in %d second(s)", *remainingTime);
-		display_setFont(smallFont);
-		display_print(buffer, CENTER, 210);
+	else
+	{
 		//Wait rest of the time
 		measure = millis() - measure;
 		if (measure < 1000)
 			delay(1000 - measure);
+
 		//Decrease remaining time by one
 		*remainingTime -= 1;
 	}
@@ -246,19 +243,41 @@ void videoCaptureInterval(int16_t* remainingTime, int* framesCaptured, char* dir
 /* Normal video capture */
 void videoCaptureNormal(char* dirname, int* framesCaptured) {
 	char buffer[30];
+
 	//Save video raw frame
 	saveRawData(false, dirname, *framesCaptured);
-	//Refresh capture
-	refreshCapture(false);
+
+	//Convert the colors
+	convertColors();
+
+	//Display infos
+	displayInfos();
+
+	//Write to image buffer
+	display_writeToImage = true;
+
 	//Display title
-	display_setFont(bigFont);
-	display_print((char*) "Video capture", CENTER, 20);
+	if ((teensyVersion == teensyVersion_new) && (hqRes))
+		display_print((char*) "Video capture", 115, 20);
+	else
+		display_print((char*) "Video capture", 100, 20);
+
 	//Raise capture counter
 	*framesCaptured = *framesCaptured + 1;
+
 	//Display current frames captured
-	display_setFont(smallFont);
 	sprintf(buffer, "Frames captured: %5d", *framesCaptured);
-	display_print(buffer, CENTER, 210);
+	if ((teensyVersion == teensyVersion_new) && (hqRes))
+		display_print(buffer, 70, 200);
+	else
+		display_print(buffer, 55, 200);
+
+	//Disable image buffer
+	display_writeToImage = false;
+
+	//Refresh capture
+	displayBuffer();
+
 }
 
 /* This screen is shown during the video capture */
@@ -268,15 +287,13 @@ void videoCapture() {
 	int16_t delayTime = videoInterval;
 	int framesCaptured = 0;
 
-	//Update display
-	showFullMessage((char*) "Please wait..");
+	//Show message
+	showFullMessage((char*)"Touch screen to turn it off");
+	display_print((char*) "Press the button to abort", CENTER, 170);
+	delay(1500);
 
 	//Create folder 
 	createVideoFolder(dirname);
-
-	//Set text colors
-	changeTextColor();
-	display_setBackColor(VGA_TRANSPARENT);
 
 	//Switch to recording mode
 	videoSave = videoSave_recording;
@@ -290,17 +307,8 @@ void videoCapture() {
 			while (!digitalRead(pin_touch_irq));
 		}
 
-		//Receive the temperatures over SPI
-		lepton_getRawValues();
-		//Compensate calibration with object temp
-		compensateCalib();
-
-		//Refresh the temp points if required
-		refreshTempPoints();
-
-		//Find min and max if not in manual mode and limits not locked
-		if ((autoMode) && (!limitsLocked))
-			limitValues();
+		//Create the thermal image
+		createThermalImg();
 
 		//Video capture
 		if (videoInterval == 0) {
@@ -331,7 +339,6 @@ void videoCapture() {
 
 	//Disable mode
 	videoSave = videoSave_disabled;
-	imgSave = imgSave_disabled;
 }
 
 /* Video mode, choose intervall or normal */
@@ -416,7 +423,6 @@ redraw:
 
 			//Back
 			if (pressedButton == 2) {
-
 				//Disable mode and return
 				videoSave = videoSave_disabled;
 				return;

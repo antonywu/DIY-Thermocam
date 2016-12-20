@@ -88,7 +88,9 @@ void adjustCombinedRefresh() {
 		vc0706_end();
 	camera_capture();
 	//Create the combined image
+	showMenu = false;
 	createVisCombImg();
+	showMenu = true;
 	//Display it on the screen
 	displayBuffer();
 	//Display the GUI

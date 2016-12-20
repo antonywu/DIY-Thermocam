@@ -114,12 +114,15 @@ void createBMPFile(char* filename) {
 
 /* Creates a JPEG file for the visual image */
 void createJPEGFile(char* dirname) {
-	//Go into the video folder if required
+	//Go into the video folder and add extension
 	if (dirname != NULL)
+	{
 		sd.chdir(dirname);
-
-	//Create JPEG file
-	strcpy(&saveFilename[14], ".JPG");
+		strcpy(&saveFilename[5], ".JPG");
+	}
+	else
+		strcpy(&saveFilename[14], ".JPG");
+	//Create the file
 	sdFile.open(saveFilename, O_RDWR | O_CREAT | O_AT_END);
 }
 
@@ -254,16 +257,20 @@ void processVideoFrames(int framesCaptured, char* dirname) {
 	char filename[] = "00000.DAT";
 	int framesConverted = 0;
 
-	//Display screen content
+	//Display title
 	display_fillScr(200, 200, 200);
 	display_setBackColor(200, 200, 200);
 	display_setFont(bigFont);
 	display_setColor(VGA_BLUE);
 	display_print((char*)"Video conversion", CENTER, 30);
+
+	//Display info
 	display_setFont(smallFont);
 	display_setColor(VGA_BLACK);
 	display_print((char*)"Converts all .DAT to .BMP frames", CENTER, 80);
 	display_print((char*)"Press button to abort the process", CENTER, 120);
+
+	//Display content
 	sprintf(buffer, "Frames converted: %5d / %5d", framesConverted, framesCaptured);
 	display_print(buffer, CENTER, 160);
 	sprintf(buffer, "Folder name: %s", dirname);
@@ -271,11 +278,6 @@ void processVideoFrames(int framesCaptured, char* dirname) {
 
 	//Switch to processing mode
 	videoSave = videoSave_processing;
-
-	//Font color
-	display_setBackColor(200, 200, 200);
-	display_setFont(smallFont);
-	display_setColor(VGA_BLACK);
 
 	//Go through all the frames in the folder
 	for (framesConverted = 0; framesConverted < framesCaptured; framesConverted++) {
@@ -286,6 +288,7 @@ void processVideoFrames(int framesCaptured, char* dirname) {
 		//Get filename
 		frameFilename(filename, framesConverted);
 		strcpy(&filename[5], ".DAT");
+		
 		//Load Raw data
 		loadRawData(filename, dirname);
 
@@ -302,9 +305,20 @@ void processVideoFrames(int framesCaptured, char* dirname) {
 		//Convert lepton data to RGB565 colors
 		convertColors(true);
 
+		//Display additional information
+		bool hqRes_old = hqRes;
+		hqRes = false;
+		displayInfos();
+		hqRes = hqRes_old;
+
 		//Save frame to image file
 		strcpy(&filename[5], ".BMP");
 		saveVideoFrame(filename, dirname);
+
+		//Font color
+		display_setBackColor(200, 200, 200);
+		display_setFont(smallFont);
+		display_setColor(VGA_BLACK);
 
 		//Update screen content
 		sprintf(buffer, "Frames converted: %5d / %5d", framesConverted + 1, framesCaptured);
@@ -321,7 +335,7 @@ void saveRawData(bool isImage, char* name, uint16_t framesCaptured) {
 	uint16_t result;
 
 	//Start SD
-	startAltClockline(true);
+	startAltClockline();
 
 	//Create filename for image
 	if (isImage) {
@@ -425,7 +439,7 @@ void saveBuffer(char* filename) {
 	unsigned short pixel;
 
 	//Otherwise switch to clockline
-	startAltClockline(true);
+	startAltClockline();
 
 	//Create file
 	createBMPFile(filename);

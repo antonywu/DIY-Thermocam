@@ -137,7 +137,7 @@ void ov2640_busWrite(int address, int value) {
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(2);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(1);
 	//Take the SS pin low to select the chip
-	SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+	SPI.beginTransaction(SPISettings(7000000, MSBFIRST, SPI_MODE0));
 	digitalWriteFast(pin_cam_cs, LOW);
 	//Send in the address and value via SPI
 	SPI.transfer(address);
@@ -156,7 +156,7 @@ uint8_t ov2640_busRead(int address) {
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(2);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(1);
 	//Take the SS pin low to select the chip
-	SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+	SPI.beginTransaction(SPISettings(7000000, MSBFIRST, SPI_MODE0));
 	digitalWriteFast(pin_cam_cs, LOW);
 	//Send in the address and value via SPI
 	SPI.transfer(address);
@@ -288,7 +288,7 @@ void ov2640_startFifoBurst(void) {
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(2);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(1);
 	startAltClockline();
-	SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+	SPI.beginTransaction(SPISettings(7000000, MSBFIRST, SPI_MODE0));
 	digitalWriteFast(pin_cam_cs, LOW);
 	SPI.transfer(BURST_FIFO_READ);
 }
@@ -380,7 +380,7 @@ void ov2640_capture(void) {
 }
 
 /* Transfer the JPEG data from the OV2640 */
-void ov2640_transfer(uint8_t * jpegData, boolean stream, uint32_t length = 0)
+bool ov2640_transfer(uint8_t * jpegData, boolean stream, uint32_t length = 0)
 {
 	//Count variable
 	uint32_t counter = 0;
@@ -391,15 +391,21 @@ void ov2640_transfer(uint8_t * jpegData, boolean stream, uint32_t length = 0)
 	//Transfer data
 	uint8_t temp = 0xff, temp_last;
 	boolean is_header = 0;
-	while (1)
+	while (length > 0)
 	{
+		if (showMenu)
+		{
+			ov2640_endFifoBurst();
+			return false;
+		}
+
 		//Save last byte
 		temp_last = temp;
 		//Get new byte over SPI
 		temp = SPI.transfer(0x00);
 
 		//Normal bytestream
-		if (is_header == 1)
+		if (is_header)
 		{
 			jpegData[counter] = temp;
 			counter++;
@@ -425,13 +431,19 @@ void ov2640_transfer(uint8_t * jpegData, boolean stream, uint32_t length = 0)
 		}
 
 		//End byte sequence
-		if (((temp == 0xD9) && (temp_last == 0xFF)) || (counter == length))
+		if (((temp == 0xD9) && (temp_last == 0xFF)))
 		{
-			break;
+			//Stop FIFO Burst
+			ov2640_endFifoBurst();
+			//Everything was OK
+			return true;
 		}
-			
-	}
 
+		length--;
+	}
 	//Stop FIFO Burst
 	ov2640_endFifoBurst();
+
+	//There was an error
+	return false;
 }

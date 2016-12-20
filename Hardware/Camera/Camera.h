@@ -343,8 +343,17 @@ void camera_get(byte mode, char* dirname = NULL)
 	//Arducam
 	if (teensyVersion == teensyVersion_new) {
 		//Stream
-		if (mode == camera_stream)
-			ov2640_transfer(camera_jpegData, 1, jpegLen);
+		if (mode == camera_stream) {
+			if (!ov2640_transfer(camera_jpegData, 1, jpegLen))
+			{
+				//Free the jpeg data array
+				free(camera_jpegData);
+				//Send capture command for next frame
+				camera_capture();
+				//Go back
+				return;
+			}
+		}
 
 		//Save
 		else if (mode == camera_save) {
@@ -357,7 +366,7 @@ void camera_get(byte mode, char* dirname = NULL)
 				ov2640_transfer(camera_jpegData, 0, jpegLen);
 
 			//Start SD transmission
-			startAltClockline(true);
+			startAltClockline();
 
 			//Create JPEG file
 			createJPEGFile(dirname);

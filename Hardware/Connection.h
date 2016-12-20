@@ -446,7 +446,7 @@ void setShutterMode()
 	//Check if it has a valid number
 	if ((read >= 0) && (read <= 1))
 		//Set lepton shutter mode
-		lepton_shutterMode(read);
+		lepton_ffcMode(read);
 
 	//Send ACK
 	Serial.write(CMD_SET_SHUTTERMODE);
@@ -514,7 +514,6 @@ void sendHQResolution()
 	else
 		Serial.write(hqRes);
 }
-
 
 /* Set temperature points array */
 void setTempPoints()
@@ -971,8 +970,6 @@ void serialConnect() {
 		toggleLaser();
 
 	//Switch back to auto shutter if manual used
-	if (leptonShutter == leptonShutter_manual) {
+	if (leptonShutter == leptonShutter_manual)
 		lepton_ffcMode(true);
-		leptonShutter = leptonShutter_auto;
-	}
 }

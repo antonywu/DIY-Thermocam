@@ -49,12 +49,17 @@ void changeTextColor() {
 
 /* Shows a full screen message */
 void showFullMessage(char* message, bool small) {
+	//Fill screen complete
 	if (!small)
 		display_fillScr(200, 200, 200);
+	
+	//Make a round corner around it
 	else {
 		display_setColor(200, 200, 200);
 		display_fillRoundRect(6, 6, 314, 234);
 	}
+
+	//Display the text
 	display_setFont(smallFont);
 	display_setBackColor(200, 200, 200);
 	display_setColor(VGA_BLACK);
@@ -151,7 +156,9 @@ void showDiagnostic() {
 		display_print((char*) "OK    ", 220, 90);
 	else {
 		display_print((char*) "Failed", 220, 90);
-		//We disable the camera, so the user can go on
+		//We switch to thermal mode
+		displayMode = displayMode_thermal;
+		//And disable the visual image save
 		visualEnabled = false;
 	}
 	//Check touch screen
@@ -185,27 +192,53 @@ void showDiagnostic() {
 void bootScreen() {
 	//Set rotation
 	setDisplayRotation();
+
 	//Init the buttons
 	buttons_init();
+
 	//Set Fonts
 	buttons_setTextFont(smallFont);
 	display_setFont(smallFont);
+
 	//Draw Screen
 	display_fillScr(255, 255, 255);
 	display_setFont(bigFont);
 	display_setBackColor(255, 255, 255);
 	display_setColor(VGA_BLACK);
+
+	//Show the logo and boot text
 	display_writeRect4BPP(90, 35, 140, 149, logoBitmap, logoColors);
 	display_print((char*) "Booting", CENTER, 194);
 	display_setFont(smallFont);
-	//DIY-Thermocam V2
+
+	//Show hardware version
 	if (teensyVersion == teensyVersion_new)
 		display_print((char*)"DIY-Thermocam V2", CENTER, 10);
-	//DIY-Thermocam V1
 	else
 		display_print((char*)"DIY-Thermocam V1", CENTER, 10);
+
 	//Display version
 	display_print((char*)Version, CENTER, 220);
+}
+
+/* Show the shutter info on the boot screen */
+void bootFFC()
+{
+	//Skip if returnning from mass storage mode or doing a firmware update
+	if ((EEPROM.read(eeprom_massStorage) == eeprom_setValue) ||
+		(EEPROM.read(eeprom_fwVersion) != fwVersion))
+		return;
+
+	//Showing the info on the screen
+	display_setFont(bigFont);
+	display_print((char*) "Performing FFC", CENTER, 194);
+	display_setFont(smallFont);
+
+	//Wait some time for FFC to complete
+	delay(2000);
+
+	//If no automatic FFC desired, disable it forever
+	checkNoFFC();
 }
 
 /* More includes */

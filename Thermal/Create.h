@@ -37,8 +37,13 @@ void gaussianFilter() {
 	}
 }
 
-/* Filter a 160x120 smallBuffer with a 3x3 box filter */
+/* Filter a 160x120 smallBuffer with a 3x3 box kernel */
 void boxFilter() {
+	byte boxKernel[3][3] = {
+		{ 1, 1, 1 },
+		{ 1, 1, 1 },
+		{ 1, 1, 1 }
+	};
 	long sum;
 
 	for (int y = 1; y < 119; y++) {
@@ -46,7 +51,7 @@ void boxFilter() {
 			sum = 0;
 			for (int k = -1; k <= 1; k++) {
 				for (int j = -1; j <= 1; j++) {
-					sum += smallBuffer[(y - j) * 160 + (x - k)];
+					sum += boxKernel[j + 1][k + 1] * smallBuffer[(y - j) * 160 + (x - k)];
 				}
 			}
 			smallBuffer[(y * 160) + x] = (unsigned short)(sum / 9.0);
@@ -687,7 +692,8 @@ void createThermalImg(bool small) {
 		smallToBigBuffer();
 
 	//Convert lepton data to RGB565 colors
-	convertColors(small);
+	if(!videoSave)
+		convertColors(small);
 }
 
 /* Create the visual or combined smallBuffer display */

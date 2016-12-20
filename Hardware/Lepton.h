@@ -211,11 +211,13 @@ void lepton_getRawValues()
 					if (savePackage(line, segment))
 						continue;
 
-				//Stabilize framerate
-				delayMicroseconds(800);
-
 				//Raise lepton error
 				error++;
+
+				//Stabilize framerate
+				uint32_t time = micros();
+				while ((micros() - time) < 800)
+					__asm__ volatile ("nop");
 
 				//Restart at line 0
 				break;
@@ -229,14 +231,11 @@ void lepton_getRawValues()
 
 /* Trigger a flat-field-correction on the Lepton */
 bool lepton_ffc(bool message = false) {
-	//Return if no shutter attached
-	if (leptonVersion == leptonVersion_2_noShutter)
-		return false;
-
 	//Show a message for main menu
 	if (message)
-		showFullMessage((char*) "Triggering the Shutter..", true);
+		showFullMessage((char*) "Performing FFC..", true);
 
+	//Send FFC run command
 	Wire.beginTransmission(0x2A);
 	Wire.write(0x00);
 	Wire.write(0x04);
@@ -273,56 +272,43 @@ int lepton_readReg(byte reg) {
 /* Set the shutter operation to manual/auto */
 void lepton_ffcMode(bool automatic)
 {
-	//Array for the package
-	byte package[32];
-	//Read command
-	Wire.beginTransmission(0x2A);
-	Wire.write(0x00);
-	Wire.write(0x04);
-	Wire.write(0x02);
-	Wire.write(0x3C);
-	Wire.endTransmission();
-	//Read old FFC package first
-	Wire.beginTransmission(0x2A);
-	while (lepton_readReg(0x2) & 0x01);
-	uint8_t length = lepton_readReg(0x6);
-	Wire.requestFrom((uint8_t)0x2A, length);
-	//Read out the package
-	for (byte i = 0; i < length; i++)
-	{
-		package[i] = Wire.read();
-		Serial.write(package[i]);
-	}
-	Wire.endTransmission();
+	//If there is no shutter, do not do anything
+	if (leptonShutter == leptonShutter_none)
+		return;
 
-	//Alter the second bit
-	if (automatic)
-		package[1] = 0x01;
-	else
-		package[1] = 0x02;
+	//Contains the standard values for the FFC mode
+	byte package[] = { automatic, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 
+		0, 0, 0, 0, 0, 0, 224, 147, 4, 0, 0, 0, 0, 0, 44, 1, 52, 0 };
 
-	//Transmit the new package
-	Wire.beginTransmission(0x2A);
-	Wire.write(0x00);
-	Wire.write(0x08);
-	for (int i = 0; i < length; i++) {
-		Wire.write(package[i]);
-	}
-	Wire.endTransmission();
-	//Package length, use 32 here
+	//Data length
 	Wire.beginTransmission(0x2A);
 	Wire.write(0x00);
 	Wire.write(0x06);
 	Wire.write(0x00);
-	Wire.write(0x20);
+	Wire.write(sizeof(package));
 	Wire.endTransmission();
-	//Module and command ID
+
+	//Send package
+	Wire.beginTransmission(0x2A);
+	Wire.write(0x00);
+	Wire.write(0x08);
+	for(byte i=0;i<sizeof(package);i++)
+		Wire.write(package[i]);
+	Wire.endTransmission();
+	
+	//SYS module with FFC Mode Set
 	Wire.beginTransmission(0x2A);
 	Wire.write(0x00);
 	Wire.write(0x04);
 	Wire.write(0x02);
 	Wire.write(0x3D);
 	Wire.endTransmission();
+
+	//Set shutter mode
+	if (automatic)
+		leptonShutter = leptonShutter_auto;
+	else
+		leptonShutter = leptonShutter_manual;
 }
 
 /* Checks the Lepton hardware revision */
@@ -363,67 +349,10 @@ void lepton_version() {
 	EEPROM.write(eeprom_leptonVersion, leptonVersion);
 }
 
-/* Set the shutter operation to manual or auto */
-void lepton_shutterMode(bool automatic)
-{
-	//If there is no shutter, do not do anything
-	if (leptonShutter == leptonShutter_none)
-		return;
-
-	//Set the shutter mode on the Lepton
-	lepton_ffcMode(automatic);
-
-	//Set shutter mode
-	if (automatic)
-		leptonShutter = leptonShutter_auto;
-	else
-		leptonShutter = leptonShutter_manual;
-}
-
-/* Set the radiometry mode (not used) */
-void lepton_radiometry(bool enable)
-{
-	//Enable or disable radiometry
-	Wire.beginTransmission(0x2A);
-	Wire.write(0x00);
-	Wire.write(0x08);
-	Wire.write(0x00);
-	Wire.write(enable);
-	Wire.endTransmission();
-	//Data length
-	Wire.beginTransmission(0x2A);
-	Wire.write(0x00);
-	Wire.write(0x06);
-	Wire.write(0x00);
-	Wire.write(0x02);
-	Wire.endTransmission();
-	//RAD module with OEM bit and command
-	Wire.beginTransmission(0x2A);
-	Wire.write(0x00);
-	Wire.write(0x04);
-	Wire.write(0x4E);
-	Wire.write(0x11);
-	Wire.endTransmission();
-}
-
 /* Init the FLIR Lepton LWIR sensor */
 void lepton_init() {
 	//Check the Lepton HW Revision
 	lepton_version();
-
-	//Perform FFC if shutter is attached
-	if (leptonVersion != leptonVersion_2_noShutter) {
-		//Set shutter mode to auto
-		leptonShutter = leptonShutter_auto;
-		//Run the FFC and check return
-		if (lepton_ffc())
-			setDiagnostic(diag_lep_conf);
-		//Wait some time
-		delay(2000);
-	}
-	//No shutter attached
-	else
-		leptonShutter = leptonShutter_none;
 
 	//Set the calibration timer
 	calTimer = millis();

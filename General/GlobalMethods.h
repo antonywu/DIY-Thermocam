@@ -94,3 +94,4 @@ void changeTextColor();
 void readEEPROM();
 void showImage();
 boolean checkSDCard();
+void bootFFC();

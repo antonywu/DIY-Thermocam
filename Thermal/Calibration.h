@@ -98,14 +98,10 @@ void compensateCalib() {
 
 /* Checks if the calibration warmup is done */
 void checkWarmup() {
-	//Activate the calibration after a warmup time of 60s
-	if (((calStatus == cal_warmup) && (millis() - calTimer > 60000))) {
-		//Perform FFC if shutter is attached
-		if (leptonVersion != leptonVersion_2_noShutter)
-			lepton_ffc();
+	//Activate the calibration after a warmup time of 30s
+	if (((calStatus == cal_warmup) && (millis() - calTimer > 30000)))
 		//Set calibration status to standard
 		calStatus = cal_standard;
-	}
 }
 
 /* Help function for least suqare fit */
@@ -170,7 +166,7 @@ void calibrationProcess(bool serial, bool firstStart) {
 		int counter = 0;
 
 		//Perform FFC if shutter is attached
-		if (leptonVersion != leptonVersion_2_noShutter)
+		if (leptonShutter != leptonShutter_none)
 			lepton_ffc();
 
 		//Get 100 different calibration samples
@@ -303,7 +299,9 @@ bool calibration() {
 		return calibrationChooser();
 
 	//If there is none, do a new one
-	else
-		calibrationProcess();
+	showMenu = false;
+	calibrationProcess();
+	showMenu = true;
+
 	return true;
 }

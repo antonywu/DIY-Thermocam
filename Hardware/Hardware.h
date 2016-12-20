@@ -30,21 +30,27 @@
 /* Converts a float to four bytes */
 void floatToBytes(uint8_t* farray, float val)
 {
-	unsigned long d = *(unsigned long *)&val;
-	farray[0] = d & 0x00FF;
-	farray[1] = (d & 0xFF00) >> 8;
-	farray[2] = (d & 0xFF0000) >> 16;
-	farray[3] = (d & 0xFF000000) >> 24;
+	union {
+		float f;
+		unsigned long ul;
+	} u;
+	u.f = val;
+	farray[0] = u.ul & 0x00FF;
+	farray[1] = (u.ul & 0xFF00) >> 8;
+	farray[2] = (u.ul & 0xFF0000) >> 16;
+	farray[3] = (u.ul & 0xFF000000) >> 24;
 }
 
 /* Converts four bytes back to float */
 float bytesToFloat(uint8_t* farray)
 {
-	unsigned long d;
-	d = (farray[3] << 24) | (farray[2] << 16)
+	union {
+		float f;
+		unsigned long ul;
+	} u;
+	u.ul = (farray[3] << 24) | (farray[2] << 16)
 		| (farray[1] << 8) | (farray[0]);
-	float val = *(float *)&d;
-	return val;
+	return u.f;
 }
 
 /* Switch the SPI clockline to pin 14 */
@@ -202,9 +208,9 @@ void readEEPROM() {
 		convertEnabled = read;
 	else
 		convertEnabled = false;
-	//Visual Enabled
+	//Visual Enabled, only enable if camera is connected
 	read = EEPROM.read(eeprom_visualEnabled);
-	if ((read == false) || (read == true))
+	if (((read == false) || (read == true)) && checkDiagnostic(diag_camera))
 		visualEnabled = read;
 	else
 		visualEnabled = false;
@@ -232,27 +238,27 @@ void readEEPROM() {
 		storageEnabled = read;
 	else
 		storageEnabled = false;
-	//Spot Enabled
+	//Spot Enabled, only load when spot sensor is working
 	read = EEPROM.read(eeprom_spotEnabled);
-	if ((read == false) || (read == true))
+	if (((read == false) || (read == true)) && checkDiagnostic(diag_spot))
 		spotEnabled = read;
 	else
-		spotEnabled = true;
+		spotEnabled = false;
 	//Filter Type
 	read = EEPROM.read(eeprom_filterType);
 	if ((read == filterType_none) || (read == filterType_box) || (read == filterType_gaussian))
 		filterType = read;
 	else
-		filterType = filterType_box;
+		filterType = filterType_gaussian;
 	//Colorbar Enabled
 	read = EEPROM.read(eeprom_colorbarEnabled);
 	if ((read == false) || (read == true))
 		colorbarEnabled = read;
 	else
 		colorbarEnabled = true;
-	//Display Mode
+	//Display Mode, only load when camera is connected
 	read = EEPROM.read(eeprom_displayMode);
-	if ((read == displayMode_thermal) || (read == displayMode_visual) || (read == displayMode_combined))
+	if (((read == displayMode_thermal) || (read == displayMode_visual) || (read == displayMode_combined)) && checkDiagnostic(diag_camera))
 		displayMode = read;
 	else
 		displayMode = displayMode_thermal;
@@ -560,6 +566,17 @@ bool checkScreenLight() {
 	return digitalRead(pin_lcd_backlight);
 }
 
+/* Disable automatic FFC when saved in EEPROM */
+void checkNoFFC()
+{
+	//Set value found, set FFC to manual
+	if (EEPROM.read(eeprom_noShutter) == eeprom_setValue)
+		lepton_ffcMode(false);
+
+	//Set lepton shutter to none
+	leptonShutter = leptonShutter_none;
+}
+
 /* Switches the laser on or off*/
 void toggleLaser(bool message) {
 	//Thermocam V4 or DIY-Thermocam V2 does not support this
@@ -645,16 +662,18 @@ void initHardware()
 	lepton_init();
 	//Init spot sensor
 	mlx90614_init();
+	//Init SD card
+	initSD();
 	//Disable I2C timeout
 	Wire.setDefaultTimeout(0);
 	//Init screen off timer
 	initScreenOffTimer();
 	//Init the realtime clock
 	initRTC();
-	//Check battery for the first time
-	checkBattery(true);
 	//Init the buffer(s)
 	initBuffer();
-	//Init SD card
-	initSD();
+	//Wait two more seconds for FFC to complete
+	bootFFC();
+	//Check battery for the first time
+	checkBattery(true);
 }

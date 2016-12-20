@@ -321,6 +321,9 @@ void stdEEPROMSet() {
 	if(teensyVersion == teensyVersion_new)
 		EEPROM.write(eeprom_hqRes, true);
 
+	//Set disable shutter to false
+	EEPROM.write(eeprom_noShutter, false);
+
 	//Set current firmware version
 	EEPROM.write(eeprom_fwVersion, fwVersion);
 

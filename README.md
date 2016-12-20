@@ -10,7 +10,7 @@ https://github.com/maxritter/DIY-Thermocam
 Download and install the following programs:
 
 1. Arduino 1.6.13:                      https://www.arduino.cc/en/Main/Software
-2. Teensyduino 1.33:                    https://www.pjrc.com/teensy/td_download.html
+2. Teensyduino 1.34:                    https://www.pjrc.com/teensy/td_download.html
 3. Visual Studio 2015 Community Edition: https://www.visualstudio.com/en-us/products/visual-studio-community-vs.aspx
 4. Visual Micro:                         http://www.visualmicro.com/page/Arduino-Visual-Studio-Downloads.aspx
 
@@ -25,13 +25,15 @@ For DIY-Thermocam V1:
 IDE: Arduino 1.6; 
 Board: Teensy 3.1/3.2; 
 Option1: USB Type: Serial; 
-Option2: CPU Speed 144MHz 
+Option2: CPU Speed 144MHz;
+Option3: Optimize: Faster
 
 For DIY-Thermocam V2:
 IDE: Arduino 1.6; 
 Board: Teensy 3.6; 
 Option1: USB Type: Serial; 
-Option2: CPU Speed 240MHz
+Option2: CPU Speed 240MHz;
+Option3: Optimize: Fastest
 
 Finally, select the right Comport from the list. 
 If there is no Comport, upload a blank sketch with the USB Type "Serial" to the Arduino first over the Arduino IDE.

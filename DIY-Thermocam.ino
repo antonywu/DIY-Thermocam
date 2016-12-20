@@ -14,8 +14,8 @@
 */
 
 /* Current firmware version */
-#define Version "Firmware 2.33 from 18.12.2016"
-#define fwVersion 233
+#define Version "Firmware 2.34 from 20.12.2016"
+#define fwVersion 234
 
 /* External Libraries */
 
