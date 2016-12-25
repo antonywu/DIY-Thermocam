@@ -103,7 +103,7 @@ void mlx90614_send(byte address, byte LSB, byte MSB) {
 }
 
 /* Receive data from the EEPROM over I2C */
-uint16_t mlx90614_receive(byte address) {
+uint16_t mlx90614_receive(byte address, byte* error = NULL) {
 	Wire.beginTransmission(mlx90614_EEPROM);
 	Wire.write(address);
 	Wire.endTransmission(I2C_NOSTOP);
@@ -111,7 +111,12 @@ uint16_t mlx90614_receive(byte address) {
 	byte LSB = Wire.read();
 	byte MSB = Wire.read();
 	Wire.read();
-	Wire.endTransmission();
+	//Check if the transmission worked
+	if(error != NULL)
+		*error = Wire.endTransmission();
+	else
+		Wire.endTransmission();
+	//Calc 16-bit value and return
 	uint16_t regValue = (((MSB) << 8) + LSB);
 	return regValue;
 }
@@ -301,12 +306,23 @@ float mlx90614_getTemp() {
 
 /* Initializes the sensor */
 void mlx90614_init() {
-	//Get MLX90614Version
-	uint16_t filter = mlx90614_receive(mlx90614_Filter);
+	byte error;
+
+	//Get filter settings
+	uint16_t filter = mlx90614_receive(mlx90614_Filter, &error);
+
+	//If I2C connection is not working, set diagnostic
+	if(error != 0)
+	{
+		setDiagnostic(diag_spot);
+		return;
+	}
+
+	//Calc MLX90614 version
 	mlx90614Version = (filter >> 13) & 1;
 
-	//If first start has been completed before and there are no other error, do checks
-	if ((EEPROM.read(eeprom_firstStart) == eeprom_setValue) && (diagnostic == diag_ok)) {
+	//If first start has been completed before, do checks
+	if (EEPROM.read(eeprom_firstStart) == eeprom_setValue) {
 		//Check Filter Temp
 		if (mlx90614_checkFilter() == 0) {
 			mlx90614_setFilter();

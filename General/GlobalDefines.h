@@ -163,6 +163,7 @@
 #define eeprom_adjComb3Factor   167
 #define eeprom_hqRes            168
 #define eeprom_noShutter        169
+#define eeprom_batComp			170
 #define eeprom_fwVersion        250
 #define eeprom_setValue         200
 
@@ -213,7 +214,7 @@
 #define cal_warmup   0
 #define cal_standard 1
 #define cal_manual   2
-#define cal_stdSlope 0.0402f //Standard slope value
+#define cal_stdSlope 0.0300f //Standard slope value
 
 //Image save marker
 #define imgSave_disabled 0
@@ -227,6 +228,11 @@
 #define videoSave_recording  2
 #define videoSave_processing 3
 
+//Show menu state
+#define showMenu_disabled 0
+#define showMenu_desired  1
+#define showMenu_opened   2
+
 //Load touch decision marker
 #define loadTouch_none     0
 #define loadTouch_find     1
@@ -236,7 +242,6 @@
 #define loadTouch_exit     5
 #define loadTouch_convert  6
 #define loadTouch_middle   7
-
 
 //Visual camera resolution
 #define camera_resLow 0 //160x120 for PTC-06 / PTC-08 and 320x240 for Arducam

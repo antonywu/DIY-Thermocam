@@ -137,7 +137,13 @@ void clearEEPROM() {
 
 /* Checks if a FW upgrade has been done */
 void checkFWUpgrade() {
+	//If the first start setup has not been completed, skip
+	if (checkFirstStart())
+		return;
+
+	//Read current FW version from EEPROM 
 	byte eepromVersion = EEPROM.read(eeprom_fwVersion);
+
 	//Show message after firmware upgrade
 	if (eepromVersion != fwVersion) {
 		//Upgrade from old Thermocam-V4 firmware
@@ -544,7 +550,7 @@ void initRTC() {
 
 	//Check if year is lower than 2016
 	if ((year() < 2016) && (EEPROM.read(eeprom_firstStart) == eeprom_setValue)) {
-		showFullMessage((char*) "Empty coin cell battery, recharge!");
+		showFullMessage((char*) "Empty coin cell battery!");
 		delay(1000);
 		setTime(0, 0, 0, 1, 1, 2016);
 		Teensy3Clock.set(now());
@@ -668,12 +674,12 @@ void initHardware()
 	Wire.setDefaultTimeout(0);
 	//Init screen off timer
 	initScreenOffTimer();
-	//Init the realtime clock
-	initRTC();
 	//Init the buffer(s)
 	initBuffer();
 	//Wait two more seconds for FFC to complete
 	bootFFC();
 	//Check battery for the first time
 	checkBattery(true);
+	//Init the realtime clock
+	initRTC();
 }

@@ -95,7 +95,7 @@ void timeDateScreen() {
 	//Content
 	String text[7];
 	text[0] = "Set Time & Date";
-	text[1] = "In the next screen, you can";
+	text[1] = "In the next screens, you can";
 	text[2] = "set the time and date, so ";
 	text[3] = "that it matches your current";
 	text[4] = "time zone. If the settings do";
@@ -103,13 +103,16 @@ void timeDateScreen() {
 	text[6] = "the coin cell battery voltage.";
 	infoScreen(text);
 
-	//Adjust Time & Date settings
-	setTime(12, 30, 30, 15, 6, 2016);
-	timeAndDateMenu(true);
-	timeAndDateMenuHandler(true);
+	//Reset values
+	setTime(12, 30, 30, 15, 6, 2017);
+	
+	//Adjust time
+	timeMenu(true);
+	timeMenuHandler(true);
 
-	//Set time to RTC
-	Teensy3Clock.set(now());
+	//Adjust date
+	dateMenu(true);
+	dateMenuHandler(true);
 }
 
 /* Setting screen for the temperature format */
@@ -249,7 +252,7 @@ boolean checkLiveModeHelper() {
 /* Help screen for the first start of live mode */
 void liveModeHelper() {
 	//Hint screen for the combined image setting
-	camera_setStreamRes();
+	camera_setDisplayRes();
 	combinedAlignmentScreen();
 	camera_setSaveRes();
 
@@ -323,6 +326,17 @@ void stdEEPROMSet() {
 
 	//Set disable shutter to false
 	EEPROM.write(eeprom_noShutter, false);
+
+	//Battery gauge standard compensation values
+	//DIY-Thermocam V1
+	if ((teensyVersion == teensyVersion_old) && (mlx90614Version == mlx90614Version_new))
+		EEPROM.write(eeprom_batComp, 0);
+	//Thermocam V4
+	else if ((teensyVersion == teensyVersion_old) && (mlx90614Version == mlx90614Version_old))
+		EEPROM.write(eeprom_batComp, 0);
+	//DIY-Thermocam V2
+	else
+		EEPROM.write(eeprom_batComp, 20);
 
 	//Set current firmware version
 	EEPROM.write(eeprom_fwVersion, fwVersion);

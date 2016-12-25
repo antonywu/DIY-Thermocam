@@ -190,6 +190,7 @@ void imgSaveStart() {
 
 		//Wait a second
 		delay(1000);
+
 		//Capture visual frame
 		camera_capture();
 

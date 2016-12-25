@@ -299,9 +299,7 @@ bool calibration() {
 		return calibrationChooser();
 
 	//If there is none, do a new one
-	showMenu = false;
 	calibrationProcess();
-	showMenu = true;
 
 	return true;
 }

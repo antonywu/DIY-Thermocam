@@ -188,11 +188,12 @@ void lepton_getRawValues()
 			for (line = 0; line < 60; line++) {
 				//Maximum error count
 				if (error == 255) {
-					//If show menu was entered
-					if (showMenu) {
+					//If main menu should be entreed
+					if (showMenu == showMenu_desired) {
 						lepton_end();
 						return;
 					}
+
 					//Reset segment
 					segment = 1;
 					//Reset error

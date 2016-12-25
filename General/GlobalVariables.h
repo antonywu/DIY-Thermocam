@@ -47,6 +47,7 @@ ADC *batMeasure;
 //Battery
 int8_t batPercentage;
 long batTimer;
+int8_t batComp;
 
 //Convert RAW to BMP
 bool convertEnabled;
@@ -147,7 +148,7 @@ volatile byte imgSave;
 //Save Video in the next cycle
 volatile byte videoSave;
 //Show Live Mode Menu in the next cycle
-volatile bool showMenu;
+volatile byte showMenu;
 //Handler for a long touch press
 volatile bool longTouch;
 //Check if in serial mode

@@ -398,11 +398,10 @@ void hotColdChooserHandler() {
 
 /* Select the limit in hot/cold mode */
 void hotColdChooser() {
-	//Disable show menu for get temp
-	showMenu = false;
 	//Background & title
 	mainMenuBackground();
 	mainMenuTitle((char*) "Set Limit");
+
 	//Draw the buttons
 	buttons_deleteAllButtons();
 	buttons_setTextFont(bigFont);
@@ -442,9 +441,6 @@ void hotColdChooser() {
 
 	//Go into the normal touch handler
 	hotColdChooserHandler();
-
-	//Re-enable show menu
-	showMenu = true;
 }
 
 /* Menu to display hot or cold areas */
@@ -538,7 +534,7 @@ void tempLimitsPresetSaveString(int pos) {
 /* Menu to save the temperature limits to a preset */
 bool tempLimitsPresetSaveMenu() {
 	//Save the current position inside the menu
-	byte menuPos = 0;
+	byte menuPos = 1;
 	//Background
 	mainMenuBackground();
 	//Title
@@ -755,12 +751,11 @@ bool tempLimitsManualHandler() {
 
 /* Select the limits in Manual Mode*/
 void tempLimitsManual() {
-	//Disable show menu for get temp
-	showMenu = false;
 redraw:
 	//Background & title
 	mainMenuBackground();
 	mainMenuTitle((char*) "Temp. Limits");
+
 	//Draw the buttons
 	buttons_deleteAllButtons();
 	buttons_setTextFont(bigFont);
@@ -769,21 +764,23 @@ redraw:
 	buttons_addButton(15, 48, 55, 120, (char*) "Min");
 	buttons_addButton(250, 48, 55, 120, (char*) "Max");
 	buttons_drawButtons();
+
 	//Prepare the preview image
 	delay(10);
 	autoMode = true;
 	createThermalImg(true);
 	autoMode = false;
+
 	//Display the preview image
 	display_drawBitmap(80, 48, 160, 120, smallBuffer, 1);
+
 	//Draw the border for the preview image
 	display_setColor(VGA_BLACK);
 	display_drawRect(79, 47, 241, 169);
+
 	//Go into the normal touch handler
 	if (!tempLimitsManualHandler())
 		goto redraw;
-	//Re-enable show menu
-	showMenu = true;
 }
 
 /* Switch the temperature limits preset string */
@@ -1215,7 +1212,7 @@ bool modeMenu() {
 				showFullMessage((char*)"Please wait..", true);
 
 				//Set camera resolution to streaming
-				camera_setStreamRes();
+				camera_setDisplayRes();
 
 				//Set display mode to visual
 				if (pressedButton == 1)
@@ -1278,7 +1275,7 @@ void hqResolutionMenu() {
 				if (displayMode == displayMode_thermal)
 					camera_setSaveRes();
 				else
-					camera_setStreamRes();
+					camera_setDisplayRes();
 
 				//Write new settings to EEPROM
 				EEPROM.write(eeprom_hqRes, hqRes);
@@ -1466,21 +1463,31 @@ void mainMenuHandler(byte* pos) {
 
 /* Start live menu */
 void mainMenu() {
+	//Set show menu to opened
+	showMenu = showMenu_opened;
+
 	//Position in the main menu
 	static byte mainMenuPos = 0;
+	
 	//Draw content
 	drawMainMenu(mainMenuPos);
+	
 	//Touch handler - return true if exit to Main menu, otherwise false
 	mainMenuHandler(&mainMenuPos);
+	
 	//Restore old fonts
 	display_setFont(smallFont);
 	buttons_setTextFont(smallFont);
+	
 	//Delete the old buttons
 	buttons_deleteAllButtons();
+	
 	//Wait a short time
 	delay(500);
+
 	//Clear serial buffer
 	Serial.clear();
+
 	//Disable menu marker
-	showMenu = false;
+	showMenu = showMenu_disabled;
 }

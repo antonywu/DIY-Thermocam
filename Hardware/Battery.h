@@ -43,15 +43,9 @@ int getLipoPerc(float vol) {
 }
 
 /* Measure the battery voltage and convert it to percent */
-void checkBattery(bool start = false) {
+void checkBattery(bool start = false, bool calibrate = false) {
 	//Read battery voltage
-	float vBat;
-	//Thermocam V4 or DIY-Thermocam V1
-	if(teensyVersion == teensyVersion_old)
-		vBat= (batMeasure->analogRead(pin_bat_measure) * 1.5 * 3.3) / batMeasure->getMaxValue(ADC_0);
-	//DIY-Thermocam V2
-	else
-		vBat = (batMeasure->analogRead(pin_bat_measure) * 1.55 * 3.3) / batMeasure->getMaxValue(ADC_0);
+	float vBat = (batMeasure->analogRead(pin_bat_measure) * 1.5 * 3.3) / batMeasure->getMaxValue(ADC_0);
 
 	//Check if the device is charging
 	int vUSB = analogRead(pin_usb_measure);
@@ -72,6 +66,25 @@ void checkBattery(bool start = false) {
 		else
 			vBat += 0.15;
 	}
+	
+	//Recalibrate the battery gauge
+	if (calibrate)
+	{
+		//Calculate value to correct
+		float compensation = (4.15 - vBat) * 100;
+		batComp = (int8_t) round(compensation);
+
+		//Save to EEPROM
+		EEPROM.write(eeprom_batComp, batComp);
+	}
+
+	//At first launch, read value from EEPROM
+	if(start)
+		batComp = EEPROM.read(eeprom_batComp);
+
+	//Correct voltage
+	if (batComp != 0)
+		vBat += (float) batComp / 100.0;
 
 	//Calculate the percentage out of the voltage
 	batPercentage = getLipoPerc(vBat);

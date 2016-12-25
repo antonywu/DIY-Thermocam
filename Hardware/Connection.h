@@ -18,12 +18,13 @@
 //Start & Stop command
 #define CMD_START              100
 #define CMD_END	               200
+#define CMD_INVALID				 0
 
 //Serial terminal commands
 #define CMD_GET_RAWLIMITS      110
 #define CMD_GET_RAWDATA        111
 #define CMD_GET_CONFIGDATA     112
-#define CMD_GET_VISUALIMGLOW   113
+#define CMD_GET_CALSTATUS      113
 #define CMD_GET_CALIBDATA      114
 #define CMD_GET_SPOTTEMP       115
 #define CMD_SET_TIME           116
@@ -38,7 +39,7 @@
 #define CMD_SET_CALSLOPE       125
 #define CMD_SET_CALOFFSET      126
 #define CMD_GET_DIAGNOSTIC     127
-#define CMD_GET_VISUALIMGHIGH  128
+#define CMD_GET_VISUALIMG      128
 #define CMD_GET_FWVERSION      129
 #define CMD_SET_LIMITS         130
 #define CMD_SET_TEXTCOLOR      131
@@ -171,17 +172,51 @@ void sendConfigData() {
 	Serial.write((autoMode) && (!limitsLocked));
 }
 
+/* Sends the calibration status */
+void sendCalStatus() {
+	//Send status byte
+	Serial.write(calStatus);
+	//Send remaining seconds left
+	if (calStatus == cal_warmup)
+		Serial.write((byte)abs(30 - ((millis() - calTimer) / 1000)));
+	else
+			Serial.write(0);
+}
+
 /* Sends the visual image in low or high quality */
-void sendVisualImg(bool high)
+void sendVisualImg()
 {
+	bool high;
+
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
+	//Read byte from serial port
+	byte read = Serial.read();
+	//Check if it has a valid number
+	if ((read >= 0) && (read <= 1))
+		high = read;
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Only when camera is working
 	if (checkDiagnostic(diag_camera)) {
-		//Change resolution to 640x480
-		if (high)
-			camera_changeRes(camera_resHigh);
-		//Change resolution to 320x240
-		else
-			camera_changeRes(camera_resMiddle);
+
+		//Change resolution to 320x240 for serial streaming
+		if ((!high) && (camera_resolution != camera_resMiddle))
+			camera_setStreamRes();
+
+		//Change resolution to 640x480 for snapshots
+		if ((high) && (camera_resolution != camera_resHigh))
+			camera_setSaveRes();
 
 		//Capture a frame
 		camera_capture();
@@ -189,9 +224,10 @@ void sendVisualImg(bool high)
 		//Send the data over the serial port
 		camera_get(camera_serial);
 	}
-	//Send false
+
+	//Send invalid
 	else
-		Serial.write(0);
+		Serial.write(CMD_INVALID);
 }
 
 /* Sends the calibration data */
@@ -256,23 +292,47 @@ void setTime() {
 /* Sets the calibration offset */
 void setCalOffset() {
 	uint8_t farray[4];
+
+	//If not enough data available, leave
+	if (Serial.available() < 4)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read calibration offset
 	for (int i = 0; i < 4; i++)
 		farray[i] = Serial.read();
 	calOffset = bytesToFloat(farray);
+
 	//Store to EEPROM
 	storeCalibration();
+
+	//Send ACK
+	Serial.write(CMD_SET_CALOFFSET);
 }
 
 /* Sets the calibration slope */
 void setCalSlope() {
 	uint8_t farray[4];
+
+	//If not enough data available, leave
+	if (Serial.available() < 4)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read calibration slope
 	for (int i = 0; i < 4; i++)
 		farray[i] = Serial.read();
 	calSlope = bytesToFloat(farray);
+
 	//Store to EEPROM
 	storeCalibration();
+
+	//Send ACK
+	Serial.write(CMD_SET_CALSLOPE);
 }
 
 /* Send the temperature points */
@@ -310,19 +370,36 @@ void sendFWVersion() {
 /* Set the temperature limits */
 void setLimits()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read byte from serial port
 	byte read = Serial.read();
 
-	//Lock limits
-	if (read == 0)
-		limitsLocked = true;
+	//Check if it has a valid number
+	if ((read >= 0) && (read <= 1))
+	{
+		//Lock limits
+		if (read == 0)
+			limitsLocked = true;
 
-	//Auto mode
-	else if (read == 1) {
-		//Enable auto mode
-		autoMode = true;
-		//Disable limits locked
-		limitsLocked = false;
+		//Auto mode
+		else {
+			//Enable auto mode
+			autoMode = true;
+			//Disable limits locked
+			limitsLocked = false;
+		}
+	}
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
 	}
 
 	//Send ACK
@@ -332,6 +409,13 @@ void setLimits()
 /* Set the text color */
 void setTextColor()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read byte from serial port
 	byte read = Serial.read();
 
@@ -345,6 +429,12 @@ void setTextColor()
 		//Save to EEPROM
 		EEPROM.write(eeprom_textColor, textColor);
 	}
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
 
 	//Send ACK
 	Serial.write(CMD_SET_TEXTCOLOR);
@@ -353,8 +443,16 @@ void setTextColor()
 /* Set the color scheme */
 void setColorScheme()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read byte from serial port
 	byte read = Serial.read();
+
 	//Check if it has a valid number
 	if ((read >= 0) && (read <= (colorSchemeTotal - 1)))
 	{
@@ -365,6 +463,13 @@ void setColorScheme()
 		//Save to EEPROM
 		EEPROM.write(eeprom_colorScheme, colorScheme);
 	}
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Send ACK
 	Serial.write(CMD_SET_COLORSCHEME);
 }
@@ -373,8 +478,16 @@ void setColorScheme()
 /* Set the temperature format */
 void setTempFormat()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read byte from serial port
 	byte read = Serial.read();
+
 	//Check if it has a valid number
 	if ((read >= 0) && (read <= 1))
 	{
@@ -383,6 +496,13 @@ void setTempFormat()
 		//Save to EEPROM
 		EEPROM.write(eeprom_tempFormat, tempFormat);
 	}
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Send ACK
 	Serial.write(CMD_SET_TEMPFORMAT);
 }
@@ -390,8 +510,16 @@ void setTempFormat()
 /* Set the show spot information */
 void setShowSpot()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read byte from serial port
 	byte read = Serial.read();
+
 	//Check if it has a valid number
 	if ((read >= 0) && (read <= 1))
 	{
@@ -400,6 +528,13 @@ void setShowSpot()
 		//Save to EEPROM
 		EEPROM.write(eeprom_spotEnabled, spotEnabled);
 	}
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Send ACK
 	Serial.write(CMD_SET_SHOWSPOT);
 }
@@ -407,8 +542,16 @@ void setShowSpot()
 /* Set the show colorbar information */
 void setShowColorbar()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read byte from serial port
 	byte read = Serial.read();
+
 	//Check if it has a valid number
 	if ((read >= 0) && (read <= 1))
 	{
@@ -417,6 +560,13 @@ void setShowColorbar()
 		//Save to EEPROM
 		EEPROM.write(eeprom_colorbarEnabled, colorbarEnabled);
 	}
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Send ACK
 	Serial.write(CMD_SET_SHOWCOLORBAR);
 }
@@ -424,8 +574,16 @@ void setShowColorbar()
 /* Set the show colorbar information */
 void setMinMax()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read byte from serial port
 	byte read = Serial.read();
+
 	//Check if it has a valid number
 	if ((read >= minMaxPoints_disabled) && (read <= minMaxPoints_both))
 	{
@@ -434,6 +592,13 @@ void setMinMax()
 		//Save to EEPROM
 		EEPROM.write(eeprom_minMaxPoints, minMaxPoints);
 	}
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Send ACK
 	Serial.write(CMD_SET_SHOWMINMAX);
 }
@@ -441,12 +606,26 @@ void setMinMax()
 /* Set the shutter mode */
 void setShutterMode()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read byte from serial port
 	byte read = Serial.read();
+
 	//Check if it has a valid number
 	if ((read >= 0) && (read <= 1))
 		//Set lepton shutter mode
 		lepton_ffcMode(read);
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
 
 	//Send ACK
 	Serial.write(CMD_SET_SHUTTERMODE);
@@ -455,6 +634,13 @@ void setShutterMode()
 /* Set the fitler type */
 void setFilterType()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read byte from serial port
 	byte read = Serial.read();
 
@@ -466,6 +652,12 @@ void setFilterType()
 		//Save to EEPROM
 		EEPROM.write(eeprom_filterType, filterType);
 	}
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
 
 	//Send ACK
 	Serial.write(CMD_SET_FILTERTYPE);
@@ -474,8 +666,16 @@ void setFilterType()
 /* Set the rotation */
 void setRotation()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 1)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Read byte from serial port
 	byte read = Serial.read();
+
 	//Check if it has a valid number
 	if ((read >= 0) && (read <= 1))
 	{
@@ -486,6 +686,13 @@ void setRotation()
 		//Save to EEPROM
 		EEPROM.write(eeprom_rotationEnabled, rotationEnabled);
 	}
+	//Send invalid
+	else
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Send ACK
 	Serial.write(CMD_SET_ROTATION);
 }
@@ -518,11 +725,18 @@ void sendHQResolution()
 /* Set temperature points array */
 void setTempPoints()
 {
+	//If not enough data available, leave
+	if (Serial.available() < 384)
+	{
+		Serial.write(CMD_INVALID);
+		return;
+	}
+
 	//Go through the temp points array
 	for (byte i = 0; i < 96; i++) {
 		//Read index
 		tempPoints[i][0] = (Serial.read() << 8) + Serial.read();
-		
+
 		//Correct old not_set marker
 		if (tempPoints[i][0] == 65535)
 			tempPoints[i][0] = 0;
@@ -530,6 +744,7 @@ void setTempPoints()
 		//Read value
 		tempPoints[i][1] = (Serial.read() << 8) + Serial.read();
 	}
+
 	//Send ACK
 	Serial.write(CMD_SET_TEMPPOINTS);
 }
@@ -627,9 +842,9 @@ bool serialHandler() {
 	case CMD_GET_CONFIGDATA:
 		sendConfigData();
 		break;
-		//Send low visual imahe
-	case CMD_GET_VISUALIMGLOW:
-		sendVisualImg(false);
+		//Send the calibration status
+	case CMD_GET_CALSTATUS:
+		sendCalStatus();
 		break;
 		//Send calibration data
 	case CMD_GET_CALIBDATA:
@@ -682,18 +897,14 @@ bool serialHandler() {
 		//Set calibration offset
 	case CMD_SET_CALOFFSET:
 		setCalOffset();
-		//Send ACK
-		Serial.write(CMD_SET_CALOFFSET);
 		break;
 		//Set calibration slope
 	case CMD_SET_CALSLOPE:
 		setCalSlope();
-		//Send ACK
-		Serial.write(CMD_SET_CALSLOPE);
 		break;
-		//Send high visual image
-	case CMD_GET_VISUALIMGHIGH:
-		sendVisualImg(true);
+		//Send visual image
+	case CMD_GET_VISUALIMG:
+		sendVisualImg();
 		break;
 		//Send firmware version
 	case CMD_GET_FWVERSION:
@@ -770,6 +981,10 @@ bool serialHandler() {
 	case CMD_START:
 		Serial.write(CMD_START);
 		break;
+		//Invalid command
+	default:
+		Serial.write(CMD_INVALID);
+		break;
 	}
 	Serial.flush();
 	return false;
@@ -824,7 +1039,7 @@ bool touchHandler()
 		sendCmd = FRAME_CAPTURE_VISUAL;
 		return false;
 	}
-		
+
 	//Long press
 	return true;
 }
@@ -878,24 +1093,34 @@ void checkForUpdater()
 void serialOutput() {
 	//Send the frames
 	while (true) {
+
 		//Abort transmission when touched long or save visual when short
 		if (touch_touched() && checkDiagnostic(diag_touch))
 			if (touchHandler())
 				break;
+
+		//Check warmup status
+		checkWarmup();
+
 		//Get the temps
-		if(checkDiagnostic(diag_lep_data))
+		if (checkDiagnostic(diag_lep_data))
 			lepton_getRawValues();
+
 		//Compensate calibration with object temp
-		if(checkDiagnostic(diag_spot))
+		if (checkDiagnostic(diag_spot))
 			compensateCalib();
+
 		//Refresh the temp points
 		refreshTempPoints();
+
 		//Find min and max if not in manual mode and limits not locked
 		if ((autoMode) && (!limitsLocked))
 			limitValues();
+
 		//Check button press if not in terminal mode
 		if (extButtonPressed())
 			buttonHandler();
+
 		//Check for serial commands
 		if (Serial.available() > 0) {
 			//Check for exit
@@ -910,13 +1135,12 @@ void serialInit()
 {
 	//Read all settings from EEPROM
 	readEEPROM();
+
 	//Select color scheme
 	selectColorScheme();
+
 	//Clear show temp array
 	clearTempPoints();
-
-	//Set calibration status to standard
-	calStatus = cal_standard;
 
 	//Receive and send commands over serial port
 	while (true)
@@ -937,8 +1161,8 @@ void serialConnect() {
 	if (laserEnabled)
 		toggleLaser();
 
-	//Set calibration status to standard
-	calStatus = cal_standard;
+	//Set visual camera resolution to save
+	camera_setSaveRes();
 
 	//Send ACK for Start
 	Serial.write(CMD_START);
@@ -963,7 +1187,7 @@ void serialConnect() {
 	if (displayMode == displayMode_thermal)
 		camera_setSaveRes();
 	else
-		camera_setStreamRes();
+		camera_setDisplayRes();
 
 	//Turn laser off if enabled
 	if (laserEnabled)

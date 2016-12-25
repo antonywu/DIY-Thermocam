@@ -19,6 +19,8 @@
 
 /* Sensor related definitions */
 
+#define SPISPEED 4000000
+
 #define BMP 0
 #define JPEG 1
 
@@ -137,7 +139,7 @@ void ov2640_busWrite(int address, int value) {
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(2);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(1);
 	//Take the SS pin low to select the chip
-	SPI.beginTransaction(SPISettings(7000000, MSBFIRST, SPI_MODE0));
+	SPI.beginTransaction(SPISettings(SPISPEED, MSBFIRST, SPI_MODE0));
 	digitalWriteFast(pin_cam_cs, LOW);
 	//Send in the address and value via SPI
 	SPI.transfer(address);
@@ -156,7 +158,7 @@ uint8_t ov2640_busRead(int address) {
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(2);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(1);
 	//Take the SS pin low to select the chip
-	SPI.beginTransaction(SPISettings(7000000, MSBFIRST, SPI_MODE0));
+	SPI.beginTransaction(SPISettings(SPISPEED, MSBFIRST, SPI_MODE0));
 	digitalWriteFast(pin_cam_cs, LOW);
 	//Send in the address and value via SPI
 	SPI.transfer(address);
@@ -184,21 +186,22 @@ void ov2640_writeReg(uint8_t addr, uint8_t data) {
 }
 
 /* Init the camera */
-boolean ov2640_init(void) {
+bool ov2640_init(void) {
+	bool retVal = true;
 	uint8_t vid, pid;
 
 	//Test SPI connection first
 	ov2640_writeReg(ARDUCHIP_TEST1, 0x55);
 	uint8_t rtnVal = ov2640_readReg(ARDUCHIP_TEST1);
 	if (rtnVal != 0x55)
-		return 0;
+		retVal = false;
 
 	//Test I2C connection second
 	ov2640_wrSensorReg8_8(0xff, 0x01);
 	ov2640_rdSensorReg8_8(OV2640_CHIPID_HIGH, &vid);
 	ov2640_rdSensorReg8_8(OV2640_CHIPID_LOW, &pid);
-	if ((vid != 0x26) || (pid != 0x42))
-		return 0;
+	if ((vid != 0x26) || ((pid != 0x42) && (pid != 0x41)))
+		retVal = false;
 
 	//Init registers
 	ov2640_wrSensorReg8_8(0xff, 0x01);
@@ -215,8 +218,8 @@ boolean ov2640_init(void) {
 	ov2640_wrSensorReg8_8(0x15, 0x00);
 	ov2640_wrSensorRegs8_8(OV2640_320x240_JPEG);
 
-	//Everything works
-	return 1;
+	//Return status
+	return retVal;
 }
 
 /* Set the format to JPEG or BMP */
@@ -288,7 +291,7 @@ void ov2640_startFifoBurst(void) {
 	CORE_PIN8_CONFIG = PORT_PCR_MUX(2);
 	CORE_PIN12_CONFIG = PORT_PCR_MUX(1);
 	startAltClockline();
-	SPI.beginTransaction(SPISettings(7000000, MSBFIRST, SPI_MODE0));
+	SPI.beginTransaction(SPISettings(SPISPEED, MSBFIRST, SPI_MODE0));
 	digitalWriteFast(pin_cam_cs, LOW);
 	SPI.transfer(BURST_FIFO_READ);
 }
@@ -380,8 +383,10 @@ void ov2640_capture(void) {
 }
 
 /* Transfer the JPEG data from the OV2640 */
-bool ov2640_transfer(uint8_t * jpegData, boolean stream, uint32_t length = 0)
+void ov2640_transfer(uint8_t * jpegData, boolean stream, uint32_t* length)
 {
+repeat:
+
 	//Count variable
 	uint32_t counter = 0;
 
@@ -391,12 +396,17 @@ bool ov2640_transfer(uint8_t * jpegData, boolean stream, uint32_t length = 0)
 	//Transfer data
 	uint8_t temp = 0xff, temp_last;
 	boolean is_header = 0;
-	while (length > 0)
+
+	//Repeat as long as needed
+	while (counter < *length)
 	{
-		if (showMenu)
+		//If main menu should be entered
+		if (showMenu == showMenu_desired)
 		{
+			//Stop FIFO Burst
 			ov2640_endFifoBurst();
-			return false;
+			//Go back
+			return;
 		}
 
 		//Save last byte
@@ -435,15 +445,25 @@ bool ov2640_transfer(uint8_t * jpegData, boolean stream, uint32_t length = 0)
 		{
 			//Stop FIFO Burst
 			ov2640_endFifoBurst();
-			//Everything was OK
-			return true;
-		}
+			
+			//Save length
+			*length = counter;
 
-		length--;
+			//Everything was OK
+			return;
+		}
 	}
+
 	//Stop FIFO Burst
 	ov2640_endFifoBurst();
 
-	//There was an error
-	return false;
+	//Get a new frame for stream
+	if (stream)
+	{
+		//Send capture command
+		camera_capture();
+
+		//Repeat frame receive
+		goto repeat;
+	}
 }

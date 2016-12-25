@@ -81,18 +81,12 @@ void adjustCombinedGUI() {
 
 /* Refresh the screen content in adjust combined menu */
 void adjustCombinedRefresh() {
-	//Safe delay
-	delay(10);
-	//Take a new visual image
-	if (teensyVersion == teensyVersion_old)
-		vc0706_end();
-	camera_capture();
 	//Create the combined image
-	showMenu = false;
 	createVisCombImg();
-	showMenu = true;
+
 	//Display it on the screen
 	displayBuffer();
+
 	//Display the GUI
 	adjustCombinedGUI();
 }
@@ -134,7 +128,7 @@ void adjustCombinedPresetSaveString(int pos) {
 /* Menu to save the adjust combined settings to a preset */
 bool adjustCombinedPresetSaveMenu() {
 	//Save the current position inside the menu
-	byte menuPos = 0;
+	byte menuPos = 1;
 	//Border
 	drawMainMenuBorder();
 	//Background
@@ -480,7 +474,7 @@ void secondMenu(bool firstStart) {
 			//Back
 			else if (pressedButton == 2) {
 				Teensy3Clock.set(now());
-				timeMenu();
+				timeMenu(firstStart);
 				break;
 			}
 		}
@@ -526,7 +520,7 @@ void minuteMenu(bool firstStart) {
 			//Back
 			else if (pressedButton == 2) {
 				Teensy3Clock.set(now());
-				timeMenu();
+				timeMenu(firstStart);
 				break;
 			}
 		}
@@ -572,7 +566,7 @@ void hourMenu(bool firstStart) {
 			//Back
 			else if (pressedButton == 2) {
 				Teensy3Clock.set(now());
-				timeMenu();
+				timeMenu(firstStart);
 				break;
 			}
 		}
@@ -619,7 +613,7 @@ void dayMenu(bool firstStart) {
 			//Back
 			else if (pressedButton == 2) {
 				Teensy3Clock.set(now());
-				dateMenu();
+				dateMenu(firstStart);
 				break;
 			}
 		}
@@ -665,7 +659,7 @@ void monthMenu(bool firstStart) {
 			//Back
 			else if (pressedButton == 2) {
 				Teensy3Clock.set(now());
-				dateMenu();
+				dateMenu(firstStart);
 				break;
 			}
 		}
@@ -705,8 +699,53 @@ void yearMenu(bool firstStart) {
 			//Back
 			else if (pressedButton == 2) {
 				Teensy3Clock.set(now());
-				dateMenu();
+				dateMenu(firstStart);
 				break;
+			}
+		}
+	}
+}
+
+/* Calibrate the battery gauge */
+void batteryGauge()
+{
+	//Title & Background
+	drawTitle((char*) "Battery Gauge", true);
+	display_setColor(VGA_BLACK);
+	display_setFont(smallFont);
+	display_setBackColor(200, 200, 200);
+	display_print((char*)"Do you want to calibrate the", CENTER, 75);
+	display_print((char*)"battery gauge? Fully charge the", CENTER, 95);
+	display_print((char*)"battery first (LED green/blue)!", CENTER, 115);
+	//Draw the buttons
+	buttons_deleteAllButtons();
+	buttons_setTextFont(bigFont);
+	buttons_addButton(165, 160, 140, 55, (char*) "Yes");
+	buttons_addButton(15, 160, 140, 55, (char*) "No");
+	buttons_drawButtons();
+	buttons_setTextFont(smallFont);;
+	//Touch handler
+	while (true) {
+		//If touch pressed
+		if (touch_touched() == true) {
+			int pressedButton = buttons_checkButtons(true);
+			//YES
+			if (pressedButton == 0) {
+				//Calc the compensation value
+				checkBattery(false, true);
+
+				//Show Message
+				showFullMessage((char*) "Battery gauge calibrated!", true);
+				delay(1000);
+
+				//Return
+				otherMenu();
+				return;
+			}
+			//NO
+			else if (pressedButton == 1) {
+				otherMenu();
+				return;
 			}
 		}
 	}
@@ -719,12 +758,15 @@ void dateMenu(bool firstStart) {
 	buttons_addButton(20, 60, 130, 70, (char*) "Day");
 	buttons_addButton(170, 60, 130, 70, (char*) "Month");
 	buttons_addButton(20, 150, 130, 70, (char*) "Year");
-	buttons_addButton(170, 150, 130, 70, (char*) "Back");
+	if (firstStart)
+		buttons_addButton(170, 150, 130, 70, (char*) "Save");
+	else
+		buttons_addButton(170, 150, 130, 70, (char*) "Back");
 	buttons_drawButtons();
 }
 
 /* Date Menu Handler */
-void dateMenuHandler(bool firstStart) {
+void dateMenuHandler(bool firstStart = false) {
 	while (true) {
 		//touch pressed
 		if (touch_touched() == true) {
@@ -743,7 +785,8 @@ void dateMenuHandler(bool firstStart) {
 			}
 			//Back
 			else if (pressedButton == 3) {
-				timeAndDateMenu(firstStart);
+				if(!firstStart)
+					otherMenu();
 				break;
 			}
 		}
@@ -757,7 +800,10 @@ void timeMenu(bool firstStart) {
 	buttons_addButton(20, 60, 130, 70, (char*) "Hour");
 	buttons_addButton(170, 60, 130, 70, (char*) "Minute");
 	buttons_addButton(20, 150, 130, 70, (char*) "Second");
-	buttons_addButton(170, 150, 130, 70, (char*) "Back");
+	if (firstStart)
+		buttons_addButton(170, 150, 130, 70, (char*) "Save");
+	else
+		buttons_addButton(170, 150, 130, 70, (char*) "Back");
 	buttons_drawButtons();
 }
 
@@ -781,7 +827,8 @@ void timeMenuHandler(bool firstStart = false) {
 			}
 			//Back
 			else if (pressedButton == 3) {
-				timeAndDateMenu(firstStart);
+				if(!firstStart)
+					otherMenu();
 				break;
 			}
 		}
@@ -789,48 +836,40 @@ void timeMenuHandler(bool firstStart = false) {
 }
 
 /* Time & Date Menu */
-void timeAndDateMenu(bool firstStart) {
-	drawTitle((char*) "Time & Date", firstStart);
+void otherMenu() {
+	drawTitle((char*) "Other Settings");
 	buttons_deleteAllButtons();
 	buttons_addButton(20, 60, 130, 70, (char*) "Time");
 	buttons_addButton(170, 60, 130, 70, (char*) "Date");
-	buttons_addButton(20, 150, 280, 70, (char*) "Save");
-	if (firstStart)
-		buttons_relabelButton(2, (char*) "Set", false);
+	buttons_addButton(20, 150, 130, 70, (char*) "Battery Gauge");
+	buttons_addButton(170, 150, 130, 70, (char*) "Back");
 	buttons_drawButtons();
 }
 
 /* Time & Date Menu Handler */
-void timeAndDateMenuHandler(bool firstStart = false) {
+void otherMenuHandler() {
 	while (true) {
 		//touch pressed
 		if (touch_touched() == true) {
 			int pressedButton = buttons_checkButtons();
 			//Time
 			if (pressedButton == 0) {
-				timeMenu(firstStart);
-				timeMenuHandler(firstStart);
+				timeMenu();
+				timeMenuHandler();
 			}
 			//Date
 			else if (pressedButton == 1) {
-				dateMenu(firstStart);
-				dateMenuHandler(firstStart);
+				dateMenu();
+				dateMenuHandler();
 			}
-			//Save
+			//Battery Gauge
 			else if (pressedButton == 2) {
-				if (firstStart) {
-					if (year() < 2016) {
-						showFullMessage((char*) "Year must be >= 2016!");
-						delay(1000);
-						timeAndDateMenu(true);
-					}
-					else
-						break;
-				}
-				else {
-					settingsMenu();
-					break;
-				}
+				batteryGauge();
+			}
+			//Back
+			else if (pressedButton == 3) {
+				settingsMenu();
+				break;
 			}
 		}
 	}
@@ -950,7 +989,7 @@ void convertImageMenu(bool firstStart = false) {
 void formatStorage() {
 	//ThermocamV4 or DIY-Thermocam V2, check SD card
 	if ((mlx90614Version == mlx90614Version_old) ||
-		(teensyVersion == teensyVersion_new)){
+		(teensyVersion == teensyVersion_new)) {
 		showFullMessage((char*) "Checking SD card..", true);
 		if (!checkSDCard()) {
 			showFullMessage((char*) "Insert SD card!", true);
@@ -1027,7 +1066,7 @@ void storageMenuHandler() {
 
 /* Storage menu */
 void storageMenu() {
-	drawTitle((char*) "Storage");
+	drawTitle((char*) "Storage Settings");
 	buttons_deleteAllButtons();
 	buttons_addButton(20, 60, 130, 70, (char*) "Convert image");
 	buttons_addButton(170, 60, 130, 70, (char*) "Visual image");
@@ -1205,7 +1244,7 @@ void displayMenuHandler() {
 
 /* Display menu */
 void displayMenu() {
-	drawTitle((char*) "Display");
+	drawTitle((char*) "Display Settings");
 	buttons_deleteAllButtons();
 	buttons_addButton(20, 60, 130, 70, (char*) "Temp. format");
 	buttons_addButton(170, 60, 130, 70, (char*) "Disp. rotation");
@@ -1231,10 +1270,10 @@ void settingsMenuHandler() {
 				storageMenu();
 				storageMenuHandler();
 			}
-			//Time & Date
+			//Other
 			else if (pressedButton == 2) {
-				timeAndDateMenu();
-				timeAndDateMenuHandler();
+				otherMenu();
+				otherMenuHandler();
 			}
 			//Back
 			else if (pressedButton == 3)
@@ -1250,7 +1289,7 @@ void settingsMenu() {
 	buttons_setTextFont(smallFont);
 	buttons_addButton(20, 60, 130, 70, (char*) "Display");
 	buttons_addButton(170, 60, 130, 70, (char*) "Storage");
-	buttons_addButton(20, 150, 130, 70, (char*) "Time & Date");
+	buttons_addButton(20, 150, 130, 70, (char*) "Other");
 	buttons_addButton(170, 150, 130, 70, (char*) "Back");
 	buttons_drawButtons();
 }

@@ -14,8 +14,8 @@
 */
 
 /* Current firmware version */
-#define Version "Firmware 2.34 from 20.12.2016"
-#define fwVersion 234
+#define Version "Firmware 2.35 from 25.12.2016"
+#define fwVersion 235
 
 /* External Libraries */
 
@@ -48,6 +48,9 @@ void setup()
 	//Init the hardware components
 	initHardware();
 
+	//Check for firmware upgrade done
+	checkFWUpgrade();
+
 	//Enter USB connection if no display attached
 	if (checkNoDisplay())
 		serialInit();
@@ -58,9 +61,6 @@ void setup()
 	//Do the first start setup if required
 	if (checkFirstStart())
 		firstStart();
-
-	//Check for firmware upgrade done
-	checkFWUpgrade();
 
 	//Read all settings from EEPROM
 	readEEPROM();

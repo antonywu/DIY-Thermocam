@@ -59,6 +59,10 @@ void camera_capture(void)
 /* Change the resolution of the camera */
 void camera_changeRes(byte camRes)
 {
+	//If camera not working, skip
+	if (!checkDiagnostic(diag_camera))
+		return;
+
 	//Change resolution
 	camera_resolution = camRes;
 
@@ -93,6 +97,10 @@ void camera_changeRes(byte camRes)
 			vc0706_changeCamRes(VC0706_640x480);
 		break;
 	}
+
+	//For OV2640, capture one frame and discard
+	if (teensyVersion == teensyVersion_new)
+		camera_capture();
 }
 
 /* Set the resolution to saving */
@@ -101,19 +109,22 @@ void camera_setSaveRes()
 	camera_changeRes(camera_resHigh);
 }
 
-/* Set the resolution to streaming */
+/* Set the resolution to streaming over serial */
 void camera_setStreamRes()
+{
+	camera_changeRes(camera_resMiddle);
+}
+
+/* Set the resolution to display */
+void camera_setDisplayRes()
 {
 	//Set camera resolution to low
 	if ((teensyVersion == teensyVersion_old) || (!hqRes))
 		camera_changeRes(camera_resLow);
-	
+
 	//Set to middle for HQ on Teensy 3.6
 	else
 		camera_changeRes(camera_resMiddle);
-
-	//Capture a new frame
-	camera_capture();
 }
 
 /* Init the camera module */
@@ -301,24 +312,6 @@ void camera_get(byte mode, char* dirname = NULL)
 	else
 		jpegLen = vc0706_frameLength();
 
-	//For serial transfer, send frame length
-	if (mode == camera_serial)
-	{
-		//When rotation is enabled or using the ThermocamV4, send EXIF
-		if ((rotationEnabled && (mlx90614Version == mlx90614Version_new)) || (mlx90614Version == mlx90614Version_old))
-		{
-			Serial.write(((jpegLen + 100) & 0xFF00) >> 8);
-			Serial.write((jpegLen + 100) & 0x00FF);
-		}
-		//Send JPEG Bytestream only
-		else
-		{
-			Serial.write((jpegLen & 0xFF00) >> 8);
-			Serial.write(jpegLen & 0x00FF);
-		}
-
-	}
-
 	//Buffer for Teensy 3.1 / 3.2
 	if (teensyVersion == teensyVersion_old)
 	{
@@ -343,27 +336,13 @@ void camera_get(byte mode, char* dirname = NULL)
 	//Arducam
 	if (teensyVersion == teensyVersion_new) {
 		//Stream
-		if (mode == camera_stream) {
-			if (!ov2640_transfer(camera_jpegData, 1, jpegLen))
-			{
-				//Free the jpeg data array
-				free(camera_jpegData);
-				//Send capture command for next frame
-				camera_capture();
-				//Go back
-				return;
-			}
-		}
+		if (mode == camera_stream)
+			ov2640_transfer(camera_jpegData, 1, &jpegLen);
 
 		//Save
 		else if (mode == camera_save) {
 			//Transfer from camera
-			if(rotationEnabled)
-				//With EXIF
-				ov2640_transfer(camera_jpegData, 0, jpegLen + 100);
-			else
-				//Without EXIF
-				ov2640_transfer(camera_jpegData, 0, jpegLen);
+			ov2640_transfer(camera_jpegData, 0, &jpegLen);
 
 			//Start SD transmission
 			startAltClockline();
@@ -372,10 +351,7 @@ void camera_get(byte mode, char* dirname = NULL)
 			createJPEGFile(dirname);
 
 			//Write to SD file, EXIF included if rotated
-			if (rotationEnabled)
-				sdFile.write(camera_jpegData, jpegLen + 100);
-			else
-				sdFile.write(camera_jpegData, jpegLen);
+			sdFile.write(camera_jpegData, jpegLen);
 
 			//Close file
 			sdFile.close();
@@ -388,19 +364,15 @@ void camera_get(byte mode, char* dirname = NULL)
 		//Serial transfer
 		else if (mode == camera_serial)
 		{
-			//Transfer from camera and send to serial port
-			if (rotationEnabled)
-			{
-				//With EXIF
-				ov2640_transfer(camera_jpegData, 0, jpegLen + 100);
-				Serial.write(camera_jpegData, jpegLen + 100);
-			}
-			else
-			{
-				//Without EXIF
-				ov2640_transfer(camera_jpegData, 0, jpegLen);
-				Serial.write(camera_jpegData, jpegLen);
-			}
+			//Transfer from camera
+			ov2640_transfer(camera_jpegData, 0, &jpegLen);
+			
+			//Send length
+			Serial.write((jpegLen & 0xFF00) >> 8);
+			Serial.write(jpegLen & 0x00FF);
+
+			//Send JPEG bytestream to serial port
+			Serial.write(camera_jpegData, jpegLen);
 
 			//Free buffer
 			free(camera_jpegData);
@@ -412,8 +384,6 @@ void camera_get(byte mode, char* dirname = NULL)
 
 	//For streaming, decompress data and capture next frame
 	if (mode == camera_stream) {
-		//Send capture command for next frame
-		camera_capture();
 
 		//Decompress the image if not saving
 		camera_iodev.jpic = camera_jpegData;

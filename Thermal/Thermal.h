@@ -44,7 +44,7 @@ void touchIRQ() {
 
 		//Short press - show menu
 		if (endTime < 1000)
-			showMenu = true;
+			showMenu = showMenu_desired;
 		//Long press not in visual - lock or release limits
 		else if (displayMode != displayMode_visual)
 			longTouch = true;
@@ -460,7 +460,7 @@ void liveModeInit() {
 
 	//For visual / combined, change cam res and take firts shot
 	if (displayMode != displayMode_thermal)
-		camera_setStreamRes();
+		camera_setDisplayRes();
 
 	//Attach the Button interrupt
 	attachInterrupt(pin_button, buttonIRQ, RISING);

@@ -209,6 +209,23 @@ void vc0706_transfer(uint8_t* jpegData, uint16_t jpegLen, byte mode, char* dirna
 	//Create the buffer
 	uint8_t* buffer = (uint8_t*)malloc(128 + 5);
 
+	//For serial transfer, send frame length
+	if (mode == camera_serial)
+	{
+		//When rotation is enabled or using the ThermocamV4, send EXIF
+		if ((rotationEnabled && (mlx90614Version == mlx90614Version_new)) || (mlx90614Version == mlx90614Version_old))
+		{
+			Serial.write(((jpegLen + 100) & 0xFF00) >> 8);
+			Serial.write((jpegLen + 100) & 0x00FF);
+		}
+		//Send JPEG Bytestream only
+		else
+		{
+			Serial.write((jpegLen & 0xFF00) >> 8);
+			Serial.write(jpegLen & 0x00FF);
+		}
+	}
+
 	//For saving to SD card
 	if (mode == camera_save)
 	{

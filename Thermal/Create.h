@@ -395,18 +395,12 @@ redraw:
 	//Safe delay
 	delay(10);
 
-	//Disable show menu for get temp
-	showMenu = false;
-
 	//Create thermal smallBuffer
 	if (displayMode == displayMode_thermal)
 		createThermalImg();
 	//Create visual or combined smallBuffer
 	else
 		createVisCombImg();
-
-	//Re-enable show menu
-	showMenu = true;
 
 	//Show it on the screen
 	displayBuffer();
@@ -698,8 +692,12 @@ void createThermalImg(bool small) {
 
 /* Create the visual or combined smallBuffer display */
 void createVisCombImg() {
+	//Capture new frame from camera
+	camera_capture();
+
 	//Receive the temperatures over SPI
 	lepton_getRawValues();
+
 	//Compensate calibration with object temp
 	compensateCalib();
 
