@@ -7,6 +7,8 @@ Copyright by Max Ritter
 http://www.diy-thermocam.net
 https://github.com/maxritter/DIY-Thermocam
 
+![Alt text](diagram.png?raw=true "Class Diagram")
+
 Download and install the following programs:
 
 1. Arduino 1.6.13:                      https://www.arduino.cc/en/Main/Software
