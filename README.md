@@ -7,7 +7,9 @@ Copyright by Max Ritter
 http://www.diy-thermocam.net
 https://github.com/maxritter/DIY-Thermocam
 
-![Alt text](diagram.png?raw=true "Class Diagram")
+
+<img src="https://github.com/maxritter/DIY-Thermocam/blob/master/diagram.png" width="500">
+
 
 Download and install the following programs:
 
